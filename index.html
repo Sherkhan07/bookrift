@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="kk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="BookRift — кітап оқуға, талдауға және ойын арқылы білім алуға арналған геймификацияланған платформа."
+    />
+    <title>BookRift — кітапты аш, әлемді таны.</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="game.css" />
+  </head>
+  <body class="game-page" id="top">
+    <header class="site-header">
+      <div class="container nav">
+        <a class="brand" href="#top" aria-label="BookRift басты бет">
+          <span class="brand-mark">B</span>
+          <span>BookRift</span>
+        </a>
+        <nav class="nav-links" aria-label="Негізгі навигация">
+          <a href="#books">Кітаптар</a>
+          <a href="#levels">Деңгейлер</a>
+          <a href="#extras">Ойындар</a>
+          <a href="#points">Ұпай</a>
+          <a href="#badges">Жетістіктер</a>
+          <a href="#rating">Рейтинг</a>
+        </nav>
+        <div class="hud" aria-label="Ойыншы көрсеткіштері">
+          <span class="hud-item" title="Ұпай (XP)">⭐ <strong id="hud-xp">0</strong></span>
+          <span class="hud-item" title="BookCoins">🪙 <strong id="hud-coins">0</strong></span>
+          <span class="hud-item" title="Күндік серия">🔥 <strong id="hud-streak">0</strong></span>
+          <a class="hud-item" href="/logout" title="Шығу">🚪 Шығу</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- HERO + ПРОФИЛЬ -->
+      <section class="section game-hero">
+        <div class="container game-hero-grid">
+          <div>
+            <p class="eyebrow">Геймификацияланған кітап платформасы</p>
+            <h1>BookRift</h1>
+            <p class="hero-tagline">Кітапты аш, әлемді таны.</p>
+            <p class="lead">
+              Оқушыны кітапқа жетелейтін ойын-квест: кітап таңда, жұмбақ шеш, деңгейден өт, ұпай жина. Басты ереже —
+              кітапты оқымайынша келесі деңгейге өте алмайсың. Мәтінді оқу — жасырын кілттерді табудың жалғыз жолы.
+            </p>
+            <div class="rank-box">
+              <div class="rank-row">
+                <span>Атақ: <strong id="rank-name">Жаңа оқырман</strong></span>
+                <span id="rank-next">Келесі атаққа: 150 ⭐</span>
+              </div>
+              <div class="xp-track"><span id="rank-fill"></span></div>
+            </div>
+            <div class="hero-actions">
+              <button class="button button-primary" type="button" data-continue>Ойынды бастау</button>
+              <a class="button button-secondary" href="#methods">Әдістерді ашу</a>
+            </div>
+            <blockquote class="hero-quote" id="daily-quote">“Кітап – бұл алғашқы бастама, ал ойын – оны мүмкіндіктерге айналдыратын құрал.”</blockquote>
+          </div>
+
+          <aside class="profile-card glass-card" aria-label="Ойыншы профилі">
+            <div class="avatar-stage" id="profile-avatar"></div>
+            <label class="name-field">
+              <span>Оқырман аты</span>
+              <input id="player-name" type="text" maxlength="20" placeholder="Атыңды жаз" autocomplete="off" />
+            </label>
+            <div class="profile-stats">
+              <div><strong id="stat-levels">0/6</strong><span>деңгей</span></div>
+              <div><strong id="stat-stars">0/18</strong><span>жұлдыз</span></div>
+              <div><strong id="stat-badges">0</strong><span>бейдж</span></div>
+            </div>
+            <p class="profile-status" id="profile-status" hidden>🏅 Матильданың интеллектуалды досы</p>
+            <button class="small-action wide" type="button" data-open="avatar">👗 Аватарды киіндіру</button>
+          </aside>
+        </div>
+      </section>
+
+      <section class="stats">
+        <div class="container stats-grid">
+          <div class="stat-item">
+            <strong data-target="12">0</strong>
+            <span>жанрлық бағыт</span>
+          </div>
+          <div class="stat-item">
+            <strong data-target="7">0</strong>
+            <span>оқу әдісі</span>
+          </div>
+          <div class="stat-item">
+            <strong data-target="98">0</strong>
+            <span>% мотивация</span>
+          </div>
+          <div class="stat-item">
+            <strong data-target="365">0</strong>
+            <span>күндік миссия</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ЖОБА -->
+      <section id="about" class="section">
+        <div class="container two-column">
+          <div>
+            <p class="eyebrow">Неліктен маңызды?</p>
+            <h2>Кітап оқудың қызықтыруы үшін тек “бір кітап” жеткіліксіз.</h2>
+          </div>
+          <div class="text-panel">
+            <p>
+              Оқушылардың қызығушылығы тек бір шығармаға ғана емес, барлық жанр, стиль, идея және оқырман тәжірибесіне
+              байланысты дамиды. Сондықтан платформа тек бір жұмысты көрсетуге емес, оқушыны кітаптар әлеміне сүйретуге
+              арналған болуы керек.
+            </p>
+            <p>
+              BookRift – бұл кітап оқып үйрену, жанрды танып білу, оқу дағдыларын дамыту, сұрақтар қою, дәлел табу
+              және идеяларды талдау үшін құрылған ойын-ойнау ортасы. Ойын тек уақытты өткізбейді, ол оқуды желіге,
+              қызығушылыққа және мақсатқа айналдырады.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- КІТАПТАР -->
+      <section id="books" class="section muted">
+        <div class="container">
+          <div class="section-heading books-heading">
+            <div>
+              <p class="eyebrow">Book library</p>
+              <h2>Кітапты таңда. Оқы. Талда.</h2>
+            </div>
+            <p>BookRift-те әр кітаптың өз миссиясы, тесті және сөздік әлемі бар.</p>
+          </div>
+
+          <div class="book-catalog" role="list" aria-label="Кітаптар каталогы">
+            <button class="book-card selected" type="button" data-book="matilda" role="listitem" aria-pressed="true">
+              <span class="book-cover matilda-cover">M</span>
+              <span class="book-card-copy"><strong>Матильда</strong><small>Roald Dahl · Классика</small></span>
+              <span class="book-status">Таңдалды</span>
+            </button>
+            <button class="book-card" type="button" data-book="future" role="listitem" aria-pressed="false">
+              <span class="book-cover future-cover">∞</span>
+              <span class="book-card-copy"><strong>Келесі әлем</strong><small>Фантастика · Жақында</small></span>
+              <span class="book-status">Құлыптаулы</span>
+            </button>
+            <button class="book-card" type="button" data-book="detective" role="listitem" aria-pressed="false">
+              <span class="book-cover detective-cover">?</span>
+              <span class="book-card-copy"><strong>Құпия із</strong><small>Детектив · Жақында</small></span>
+              <span class="book-status">Құлыптаулы</span>
+            </button>
+          </div>
+
+          <div class="book-workspace" id="matilda-workspace">
+            <div class="book-intro">
+              <div class="book-cover large matilda-cover">M</div>
+              <div>
+                <p class="eyebrow">Қазір оқып жатырмыз</p>
+                <h3>Матильда</h3>
+                <p>Ақылды, батыл Матильданың кітап, білім және әділдік үшін күресі. Оқығаныңды тексеріп, өз ойыңды дәлелде.</p>
+                <div class="book-meta"><span>🎮 6 деңгей</span><span>🧩 4 қосымша ойын</span><span>📚 20 сөз</span><span>🏅 13 жетістік</span></div>
+              </div>
+            </div>
+
+            <div class="analysis-grid">
+              <div class="analysis-panel">
+                <div class="panel-title"><span>🗺️</span><strong>Квест прогресі</strong><span class="panel-note" id="quest-note">0/6 деңгей</span></div>
+                <ol class="mini-quest" id="mini-quest"></ol>
+                <button class="small-action" type="button" data-continue>Ойынды жалғастыру →</button>
+              </div>
+
+              <div class="analysis-panel terms-panel">
+                <div class="panel-title"><span>📚</span><strong>Сөздік</strong><span class="panel-note" id="terms-note">0/20 меңгерілді</span></div>
+                <label class="term-search"><span>⌕</span><input id="term-search" type="search" placeholder="Сөзді ізде..." aria-label="Сөзді іздеу"></label>
+                <div class="terms-list" id="terms-list"></div>
+                <p class="term-hint">Сөзді басып, мағынасын аш. ✓ белгісі — «Сөз мергені» ойынында меңгерілген сөз.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6 ДЕҢГЕЙ -->
+      <section id="levels" class="section accent">
+        <div class="container">
+          <div class="section-heading">
+            <p class="eyebrow">Mission map · Матильда</p>
+            <h2>Платформа ішіндегі 6 деңгей</h2>
+            <p class="section-sub">Әр деңгей алдыңғысын аяқтағанда ашылады. Қате аз болса, жұлдыз көп.</p>
+          </div>
+          <div class="quest-path" id="level-list"></div>
+        </div>
+      </section>
+
+      <!-- ҚОСЫМША ОЙЫНДАР -->
+      <section id="extras" class="section">
+        <div class="container">
+          <div class="section-heading">
+            <p class="eyebrow">Қосымша ішкі ойындар</p>
+            <h2>Жеңіл тапсырма, нақты ұпай</h2>
+          </div>
+          <div class="extras-grid">
+            <article class="extra-card">
+              <div class="icon">👗</div>
+              <h3>Оқырмандық костюмдау</h3>
+              <p>BookCoins жинап, аватарыңа сиқырлы таяқша, кітап немесе оқушы формасын сатып ал.</p>
+              <button class="small-action" type="button" data-open="avatar">Дүкенді ашу →</button>
+            </article>
+            <article class="extra-card">
+              <div class="icon">✍️</div>
+              <h3>Оқиғаны жалғастыр</h3>
+              <p>Мәтіннің үзілген жерін кітап бойынша дұрыс жалғастыр.</p>
+              <span class="extra-progress" id="story-progress">0/3</span>
+              <button class="small-action" type="button" data-open="story">Бастау →</button>
+            </article>
+            <article class="extra-card">
+              <div class="icon">🎯</div>
+              <h3>Сөз мергені</h3>
+              <p>Кітаптағы 20 күрделі сөздің мағынасын тауып, сиқырлы күшіңді арттыр.</p>
+              <span class="extra-progress" id="words-progress">0/20</span>
+              <button class="small-action" type="button" data-open="words">Бастау →</button>
+            </article>
+            <article class="extra-card">
+              <div class="icon">🗺️</div>
+              <h3>Кітап картасы</h3>
+              <p>Матильданың ізімен үйден Мисс Ханидің үйшігіне дейін саяхатта.</p>
+              <span class="extra-progress" id="map-progress">0/4</span>
+              <a class="small-action" href="#map">Картаға өту →</a>
+            </article>
+          </div>
+
+          <div class="section-heading map-heading" id="map">
+            <p class="eyebrow">Interactive map</p>
+            <h2>Кітап картасы</h2>
+            <p class="section-sub">Аялдаманы таңдап, сұраққа жауап бер және мөр жина.</p>
+          </div>
+          <div class="book-map" id="book-map"></div>
+        </div>
+      </section>
+
+      <!-- ҰПАЙ ЖҮЙЕСІ + ОҚУ ЖУРНАЛЫ -->
+      <section id="points" class="section muted">
+        <div class="container">
+          <div class="section-heading">
+            <p class="eyebrow">Score system · Оқу журналы</p>
+            <h2>Әр күн оқыған сайын ұпай жинайсың</h2>
+            <p class="section-sub">Оқу журналындағы сыйлықты күніне бір рет аласың. Кез келген әрекет сериясын жалғастырады.</p>
+          </div>
+
+          <div class="points-grid">
+            <button class="points-card daily-card" type="button" data-daily="pages">
+              <span class="points-head"><span class="mini-badge">📘</span><strong>15 бет</strong></span>
+              <span class="points-text">Оқылған әр 15 бет үшін <span>+30</span> ұпай.</span>
+              <small>Бүгін оқыдым → +30 ⭐ · +5 🪙</small>
+            </button>
+            <button class="points-card daily-card" type="button" data-daily="minutes">
+              <span class="points-head"><span class="mini-badge">⏱️</span><strong>20 минут</strong></span>
+              <span class="points-text">Оқуға 20 минут жұмсасаң <span>+50</span> ұпай.</span>
+              <small>Бүгін оқыдым → +50 ⭐ · +5 🪙</small>
+            </button>
+            <article class="points-card">
+              <div class="points-head"><span class="mini-badge">🧠</span><strong>Деңгейлер</strong></div>
+              <p>Әр деңгей үшін <span>+100–250</span> ұпай. Қатесіз өтсең, жұлдыз бонусы қосылады.</p>
+            </article>
+            <article class="points-card highlight">
+              <div class="points-head"><span class="mini-badge">🔥</span><strong id="streak-text">Серия: 0 күн</strong></div>
+              <p>3 күн қатар оқысаң, қосымша <span>+100</span> ұпай.</p>
+              <div class="streak-dots" id="streak-dots"></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ОҚУ ӘДІСТЕРІ -->
+      <section id="methods" class="section">
+        <div class="container">
+          <div class="section-heading">
+            <p class="eyebrow">Reading methods</p>
+            <h2>Әртүрлі қызықты оқу әдістері</h2>
+          </div>
+
+          <div class="features-grid">
+            <article class="feature-card">
+              <div class="icon">🧩</div>
+              <h3>Квест-оқу</h3>
+              <p>Оқушы символдар мен жасырын белгілерді табу арқылы мәтінге бағытталады. Кітап тек құпияны ашудың жолы болады.</p>
+              <button class="demo-trigger" type="button" data-demo="quest">Көріп көру <span>→</span></button>
+              <div class="method-demo" data-demo-panel="quest" hidden>
+                <strong>Құпия сөзді тап</strong>
+                <p>Мәтіннен қай сөз артық екенін таңда:</p>
+                <div class="choice-row">
+                  <button type="button" class="choice-button" data-answer="wrong">орман</button>
+                  <button type="button" class="choice-button" data-answer="correct">кілт</button>
+                  <button type="button" class="choice-button" data-answer="wrong">жол</button>
+                </div>
+                <small class="demo-result" aria-live="polite"></small>
+              </div>
+            </article>
+            <article class="feature-card">
+              <div class="icon">⚡</div>
+              <h3>Бірінші жүріс</h3>
+              <p>Бірінші абзацтан бастап оқушыға қысқа сұрақтар, таңдау, тапқырлық ойындары арқылы оқудан ләззат беріледі.</p>
+              <button class="demo-trigger" type="button" data-demo="opening">Көріп көру <span>→</span></button>
+              <div class="method-demo" data-demo-panel="opening" hidden>
+                <strong>Оқиға қалай жалғасады?</strong>
+                <p>«Есік өздігінен ашылды...»</p>
+                <div class="choice-stack">
+                  <button type="button" class="choice-button" data-answer="correct">Ішке кіреді</button>
+                  <button type="button" class="choice-button" data-answer="wrong">Кітапты жабады</button>
+                </div>
+                <small class="demo-result" aria-live="polite"></small>
+              </div>
+            </article>
+            <article class="feature-card">
+              <div class="icon">🎭</div>
+              <h3>Кейіпкерлік диалог</h3>
+              <p>AI немесе “кітап кеңесшісі” оқушыға кейіпкерлердің ойларын, шешімдерін және оқиға бағытын талдауға көмектеседі.</p>
+              <button class="demo-trigger" type="button" data-demo="dialogue">Көріп көру <span>→</span></button>
+              <div class="method-demo" data-demo-panel="dialogue" hidden>
+                <strong>Кейіпкерге кеңес бер</strong>
+                <p>«Мен қорқып тұрмын. Не істеймін?»</p>
+                <div class="choice-stack">
+                  <button type="button" class="choice-button" data-answer="correct">Бір қадам жасап көр</button>
+                  <button type="button" class="choice-button" data-answer="wrong">Бәрінен қаш</button>
+                </div>
+                <small class="demo-result" aria-live="polite"></small>
+              </div>
+            </article>
+            <article class="feature-card">
+              <div class="icon">📖</div>
+              <h3>Жанрлы рулетка</h3>
+              <p>Оқушы кездейсоқ фантастика, детектив, өлең, приключение, ғылыми-танымдық немесе классика арасынан өзіне ұнағанын таңдайды.</p>
+              <button class="demo-trigger" type="button" data-demo="roulette">Айналдырып көру <span>↻</span></button>
+              <div class="method-demo" data-demo-panel="roulette" hidden>
+                <strong>Бүгінгі жанрың</strong>
+                <div class="roulette-result">?</div>
+                <button type="button" class="small-action roulette-button">Рулетканы айналдыр</button>
+              </div>
+            </article>
+            <article class="feature-card">
+              <div class="icon">🏆</div>
+              <h3>Рейтинг және жетістіктер</h3>
+              <p>Оқып шыққан сайын “сыншы”, “зерттеуші”, “көркем мәтін өлшегіші” сияқты артықшылықтар беріледі.</p>
+              <a class="demo-trigger" href="#badges">Жетістіктерді көру <span>→</span></a>
+            </article>
+            <article class="feature-card">
+              <div class="icon">🤝</div>
+              <h3>Топтық оқу</h3>
+              <p>Оқушылар жұптасып немесе командада кітапты талқылайды, пікірлерін бөліседі, викторина арқылы жеңіске жетеді.</p>
+              <button class="demo-trigger" type="button" data-demo="team">Пікір қалдыру <span>→</span></button>
+              <div class="method-demo" data-demo-panel="team" hidden>
+                <strong>Командаға қосыл</strong>
+                <p>Кітап туралы бір сөз жаз:</p>
+                <div class="team-input"><input type="text" placeholder="Мысалы: батылдық" maxlength="24"><button type="button" class="small-action team-button">Жіберу</button></div>
+                <small class="demo-result team-result" aria-live="polite"></small>
+                <a class="whatsapp-join" href="https://wa.me/77055423622?text=%D0%A1%D3%99%D0%BB%D0%B5%D0%BC%D0%B5%D1%82%D1%81%D1%96%D0%B7%20%D0%B1%D0%B5%21%20BookRift%20%D0%BA%D0%BE%D0%BC%D0%B0%D0%BD%D0%B4%D0%B0%D1%81%D1%8B%D0%BD%D0%B0%20%D2%9B%D0%BE%D1%81%D1%8B%D0%BB%D2%93%D1%8B%D0%BC%20%D0%BA%D0%B5%D0%BB%D0%B5%D0%B4%D1%96." target="_blank" rel="noopener noreferrer">
+                  💬 WhatsApp арқылы командаға қосылу
+                  <small>+7 705 542 3622</small>
+                </a>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ЖЕТІСТІКТЕР -->
+      <section id="badges" class="section muted">
+        <div class="container">
+          <div class="section-heading">
+            <p class="eyebrow">Badges</p>
+            <h2>Жетістіктер</h2>
+          </div>
+          <div class="badge-grid" id="badge-grid"></div>
+
+          <div class="section-heading map-heading">
+            <p class="eyebrow">Achievement avenue</p>
+            <h2>Жетістік аллеясы</h2>
+            <p class="section-sub">Платформадағы ұпай мен серия нақты сыйлықтарға айналады.</p>
+          </div>
+          <div class="reward-grid">
+            <article class="reward-card">
+              <div class="reward-icon">📚</div>
+              <h3>Кітап патшасы</h3>
+              <p>Ертең 2 кітап оқысаң, электронды кітаптар каталогынан тегін кітап сыйлық аласың.</p>
+              <a
+                class="reward-link"
+                href="https://drive.google.com/drive/folders/1UzeiVpooGG5dSSRPXJd87-_YqrTCZY_h?usp=sharing"
+                target="_blank"
+                rel="noopener noreferrer"
+              >📖 Каталогты ашу ↗</a>
+            </article>
+            <article class="reward-card">
+              <div class="reward-icon">🎭</div>
+              <h3>Мәдени саяхат</h3>
+              <p>1000 ұпай жинап, театр немесе музейге тегін билетке ие боласың.</p>
+            </article>
+            <article class="reward-card">
+              <div class="reward-icon">🏅</div>
+              <h3>Үздік оқырман</h3>
+              <p>3 апта қатар оқыған оқушыларға “Бас жүлде” беріледі.</p>
+            </article>
+            <article class="reward-card">
+              <div class="reward-icon">🚀</div>
+              <h3>Қызығушылық старты</h3>
+              <p>Жанрлы кітап таңдау арқылы алғашқы деңгейді жеңіп, сыйлық аласың.</p>
+            </article>
+          </div>
+          <aside class="reward-sponsor" aria-label="Сыйлық беруші">
+            <span class="reward-sponsor-icon" aria-hidden="true">🎁</span>
+            <p>
+              <span class="reward-sponsor-label">Сыйлық беруші</span>
+              <strong>Мектеп әкімшілігі</strong>
+              <span class="reward-sponsor-text">Оқуға деген ықыласың мен еңбегің үшін сыйлықтарды мектебің ризашылықпен табыстайды.</span>
+            </p>
+          </aside>
+        </div>
+      </section>
+
+      <!-- РЕЙТИНГ -->
+      <section id="rating" class="section">
+        <div class="container">
+          <div class="section-heading">
+            <p class="eyebrow">Student ranking</p>
+            <h2>Оқырмандар рейтингі</h2>
+          </div>
+          <div class="leaderboard-wrap">
+            <table class="leaderboard-table">
+              <thead>
+                <tr>
+                  <th>№</th>
+                  <th>Оқушы</th>
+                  <th>Ұпай</th>
+                  <th>Серия</th>
+                  <th>Атақ</th>
+                </tr>
+              </thead>
+              <tbody id="game-leaderboard"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ӘСЕР -->
+      <section id="impact" class="section accent">
+        <div class="container impact-layout">
+          <div>
+            <p class="eyebrow">WHY IT WORKS</p>
+            <h2>Неге тиімді?</h2>
+            <ul class="check-list">
+              <li>Оқушының қызығушылығы бірнеше жанрға тартылады.</li>
+              <li>Әр миссияда кітап, сұрақ, логика және ойын бірдей жұмыс істейді.</li>
+              <li>Платформа кітапты білуге емес, оны меңгеруге шақырады.</li>
+              <li>Оқырмандық дағды мен сыни ойлау бірге дамиды.</li>
+              <li>Ұпай, рейтинг және сыйлықтар жүйелі мотивация береді.</li>
+            </ul>
+          </div>
+
+          <div class="impact-box">
+            <div class="impact-item">
+              <span class="label">Мақсат</span>
+              <strong>Оқу қызығушылығын арттыру</strong>
+            </div>
+            <div class="impact-item">
+              <span class="label">Технология</span>
+              <strong>Геймификация + AI</strong>
+            </div>
+            <div class="impact-item">
+              <span class="label">Нәтиже</span>
+              <strong>Кітапқа тұрақты құлшыныс</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container roadmap">
+          <div class="section-heading">
+            <p class="eyebrow">Project vision</p>
+            <h2>Жобаның дамытылу жоспары</h2>
+          </div>
+          <div class="timeline">
+            <div class="timeline-item">
+              <span>01</span>
+              <div>
+                <h3>Жанрлық каталог</h3>
+                <p>Классика, фантастика, детектив, поэзия, ғылыми-танымдық және т.б. кітаптар жинақталады.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <span>02</span>
+              <div>
+                <h3>Гейм-дизайн</h3>
+                <p>Миссиялар, таймер, жетістіктер, ұпайлар, деңгейлер және бейдждер қосылады.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <span>03</span>
+              <div>
+                <h3>Сынақ және қайта өңдеу</h3>
+                <p>Оқушылардың реакциясы, қызығушылық деңгейі және оқу нәтижесі бағаланып, жүйе жетілдіріледі.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="cta" class="cta">
+        <div class="container cta-box">
+          <div>
+            <p class="eyebrow">Project promotion</p>
+            <h2>Кітапты қызықты ету — бүгінгі білім берудің ең қуатты миссиясы.</h2>
+          </div>
+          <div class="cta-contact">
+            <a class="button button-primary whatsapp-button" href="https://wa.me/77055423622?text=%D0%A1%D3%99%D0%BB%D0%B5%D0%BC%D0%B5%D1%82%D1%81%D1%96%D0%B7%20%D0%B1%D0%B5%21%20BookRift%20%D0%B6%D0%BE%D0%B1%D0%B0%D1%81%D1%8B%20%D1%82%D1%83%D1%80%D0%B0%D0%BB%D1%8B%20%D1%85%D0%B0%D0%B1%D0%B0%D1%80%D0%BB%D0%B0%D1%81%D1%8B%D0%BF%20%D1%82%D2%B1%D1%80%D0%BC%D1%8B%D0%BD." target="_blank" rel="noopener noreferrer">
+              <span aria-hidden="true">💬</span> Жоба туралы хабарласу
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-row">
+        <p>© <span id="year"></span> BookRift · Кітапты ойна — білімді жең!</p>
+        <button class="link-button" type="button" id="reset-progress">Прогресті тазалау</button>
+      </div>
+    </footer>
+
+    <dialog class="game-dialog" id="game-dialog" aria-labelledby="dialog-title">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow" id="dialog-eyebrow"></p>
+          <h2 id="dialog-title"></h2>
+        </div>
+        <button class="dialog-close" type="button" id="dialog-close" aria-label="Жабу">✕</button>
+      </div>
+      <div class="dialog-body" id="dialog-body"></div>
+    </dialog>
+
+    <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
+
+    <script src="script.js"></script>
+    <script src="game.js"></script>
+  </body>
+</html>
