@@ -22,8 +22,28 @@ const PUBLIC_PATHS = new Set([LOGIN_PAGE, '/favicon.ico']);
 const BLOCKED = [/^\/accounts\.enc\.js$/, /^\/middleware\.js$/, /^\/tools\//, /^\/private\//, /^\/\.vercelignore$/, /^\/\.gitignore$/];
 const STAFF = new Set(['teacher', 'moderator', 'admin']);
 
+// `process.env.ACCOUNTS_KEY` тура осылай жазылуы керек: Vercel оны build кезінде мәнмен ауыстырады.
+// Edge-те `process` глобалды айнымалысы болмауы мүмкін, сондықтан `typeof process` тексерісі жарамайды.
 function getKey() {
-  return (typeof process !== 'undefined' && process.env && process.env.ACCOUNTS_KEY) || '';
+  try {
+    return String(process.env.ACCOUNTS_KEY || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+// Кілт табылмаса, неге екенін түсіну үшін (мәндер емес, тек атаулар көрсетіледі)
+function envDiagnostics() {
+  const info = [];
+  try {
+    info.push(`process: ${typeof process}`);
+    info.push(`VERCEL_ENV: ${process.env.VERCEL_ENV || '—'}`);
+    const names = Object.keys(process.env).filter((k) => /^(ACCOUNTS|AUTH)_/.test(k));
+    info.push(`env атаулары: ${names.join(', ') || '—'}`);
+  } catch (error) {
+    info.push(`env оқылмады: ${error && error.message}`);
+  }
+  return info.join('\n');
 }
 
 let accountsCache = null;
@@ -118,7 +138,7 @@ export default async function middleware(request) {
   if (BLOCKED.some((re) => re.test(path))) return text('Not found', 404);
 
   if (!getKey()) {
-    return text('ACCOUNTS_KEY орнатылмаған (Vercel → Settings → Environment Variables).', 500);
+    return text(`ACCOUNTS_KEY орнатылмаған (Vercel → Settings → Environment Variables).\n\n${envDiagnostics()}`, 500);
   }
 
   // Кіру формасын тексеру
