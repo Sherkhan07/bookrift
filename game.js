@@ -6,7 +6,18 @@
      6 деңгей + 4 қосымша ойын + геймификация жүйесі
      ========================================================= */
 
-  const STORE_KEY = 'bookrift-matilda-v1';
+  // Кірген аккаунт (middleware.js қояды). Әр оқушының прогресі бөлек сақталады —
+  // бір компьютерде бірнеше бала ойнаса да араласпайды.
+  const ACCOUNT = (() => {
+    try {
+      const match = document.cookie.match(/(?:^|;\s*)br_user=([^;]*)/);
+      return match ? JSON.parse(decodeURIComponent(match[1])) : null;
+    } catch (error) {
+      return null;
+    }
+  })();
+  const STORE_KEY = 'bookrift-matilda-v1' + (ACCOUNT ? `:${ACCOUNT.login}` : '');
+  const ACCOUNT_FIRST_NAME = ACCOUNT ? (ACCOUNT.name.split(' ')[ACCOUNT.role === 'student' ? 1 : 0] || ACCOUNT.name.split(' ')[0]).slice(0, 20) : '';
 
   /* ---------------- ДЕРЕКТЕР ---------------- */
 
@@ -373,7 +384,7 @@
   function freshState() {
     return {
       v: 1,
-      name: '',
+      name: ACCOUNT_FIRST_NAME,
       xp: 0,
       coins: 0,
       levels: {},

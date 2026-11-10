@@ -16,6 +16,7 @@
     />
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="game.css" />
+    <link rel="stylesheet" href="roles.css?v=2" />
   </head>
   <body class="game-page" id="top">
     <header class="site-header">
@@ -36,12 +37,17 @@
           <span class="hud-item" title="Ұпай (XP)">⭐ <strong id="hud-xp">0</strong></span>
           <span class="hud-item" title="BookCoins">🪙 <strong id="hud-coins">0</strong></span>
           <span class="hud-item" title="Күндік серия">🔥 <strong id="hud-streak">0</strong></span>
-          <a class="hud-item" href="/logout" title="Шығу">🚪 Шығу</a>
+          <button class="hud-item role-chip" type="button" id="role-chip" title="Рөлді ауыстыру">👤 <strong id="role-chip-name">Рөл</strong></button>
         </div>
       </div>
     </header>
 
     <main>
+      <!-- РӨЛ ПАНЕЛІ (админ / модератор / пән жетекшісі) -->
+      <section class="section role-panel" id="role-panel" hidden>
+        <div class="container" id="role-panel-body"></div>
+      </section>
+
       <!-- HERO + ПРОФИЛЬ -->
       <section class="section game-hero">
         <div class="container game-hero-grid">
@@ -544,7 +550,17 @@
 
     <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
 
-    <script src="script.js"></script>
-    <script src="game.js"></script>
+    <div class="role-picker" id="role-picker" hidden>
+      <div class="role-picker-card">
+        <div class="brand"><span class="brand-mark">B</span><span>BookRift</span></div>
+        <h2>Рөліңізді таңдаңыз</h2>
+        <p class="muted-text">Платформаның қай бөлімімен жұмыс істейтініңізді таңдаңыз. Рөлді кейін жоғарғы мәзірден ауыстыруға болады.</p>
+        <div class="role-options" id="role-options"></div>
+      </div>
+    </div>
+
+    <script src="script.js?v=3"></script>
+    <script src="game.js?v=2"></script>
+    <script src="roles.js?v=2"></script>
   </body>
 </html>

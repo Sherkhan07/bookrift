@@ -85,8 +85,29 @@ document.addEventListener('DOMContentLoaded', () => {
     teamButton.addEventListener('click', () => {
       const input = document.querySelector('.team-input input');
       const result = document.querySelector('.team-result');
-      result.textContent = input.value.trim() ? `Пікірің командаға жіберілді: «${input.value.trim()}»` : 'Алдымен бір сөз жазып көр.';
-      if (input.value.trim()) input.value = '';
+      const text = input.value.trim();
+      result.textContent = text ? `Пікірің модераторға жіберілді: «${text}»` : 'Алдымен бір сөз жазып көр.';
+      if (!text) return;
+      // Модератор панелі осы тізімнен оқиды (roles.js)
+      try {
+        const list = JSON.parse(localStorage.getItem('bookrift-feedback') || '[]');
+        let who = null;
+        const match = document.cookie.match(/(?:^|;\s*)br_user=([^;]*)/);
+        if (match) who = JSON.parse(decodeURIComponent(match[1]));
+        list.push({
+          id: Date.now(),
+          text,
+          author: (who && who.role) || localStorage.getItem('bookrift-role') || 'student',
+          name: who ? `${who.name}${who.class ? ` (${who.class})` : ''}` : null,
+          status: 'pending',
+          at: new Date().toISOString()
+        });
+        localStorage.setItem('bookrift-feedback', JSON.stringify(list));
+        document.dispatchEvent(new CustomEvent('bookrift:feedback'));
+      } catch (error) {
+        /* сақтау мүмкін болмаса, елемейміз */
+      }
+      input.value = '';
     });
   }
 

@@ -1,90 +1,79 @@
-// Vercel Routing Middleware — сайттың барлық бетін логин/парольмен қорғайды.
+// Vercel Routing Middleware — әр оқушы мен қызметкер өз логин/құпиясөзімен кіреді.
 //
 // Vercel → Project → Settings → Environment Variables:
-//   AUTH_USERS  = "login1:password1,login2:password2"   (міндетті)
-//   AUTH_SECRET = кез келген ұзын кездейсоқ жол            (ұсынылады)
+//   ACCOUNTS_KEY = private/accounts.key файлындағы жол (міндетті)
 //
-// Бұл файл серверде (Vercel Edge) орындалады, сондықтан пароль браузерге ешқашан жіберілмейді.
+// Аккаунттар accounts.enc.js ішінде шифрланған; оларды `node tools/accounts.mjs` жасайды.
+// Бұл файл серверде (Vercel Edge) орындалады — құпиясөздер браузерге ешқашан жіберілмейді.
+
+import ACCOUNTS_PAYLOAD from './accounts.enc.js';
+import { b64url, fromB64url, utf8, fromUtf8, hashPassword, decryptJSON } from './tools/auth-core.js';
 
 export const config = {
-  // Барлық сұраныстар middleware арқылы өтеді
   matcher: '/:path*',
 };
 
 const COOKIE = 'br_session';
-const MAX_AGE = 60 * 60 * 24 * 7; // 7 күн
+const USER_COOKIE = 'br_user'; // беттің JS-і оқитын ақпарат (аты, рөлі); қауіпсіздік br_session-да
+const MAX_AGE = 60 * 60 * 24 * 30; // 30 күн
 const LOGIN_PAGE = '/login.html';
 const PUBLIC_PATHS = new Set([LOGIN_PAGE, '/favicon.ico']);
+// Бұл файлдар ешкімге берілмейді
+const BLOCKED = [/^\/accounts\.enc\.js$/, /^\/middleware\.js$/, /^\/tools\//, /^\/private\//, /^\/\.vercelignore$/, /^\/\.gitignore$/];
+const STAFF = new Set(['teacher', 'moderator', 'admin']);
 
-const enc = new TextEncoder();
+function getKey() {
+  return (typeof process !== 'undefined' && process.env && process.env.ACCOUNTS_KEY) || '';
+}
 
-function getUsers() {
-  const raw = (typeof process !== 'undefined' && process.env && process.env.AUTH_USERS) || '';
-  const users = new Map();
-  for (const pair of raw.split(',')) {
-    const i = pair.indexOf(':');
-    if (i <= 0) continue;
-    const login = pair.slice(0, i).trim();
-    const password = pair.slice(i + 1).trim();
-    if (login && password) users.set(login, password);
+let accountsCache = null;
+async function getAccounts() {
+  const key = getKey();
+  if (!key) return null;
+  if (!accountsCache || accountsCache.key !== key) {
+    const list = await decryptJSON(ACCOUNTS_PAYLOAD, key);
+    accountsCache = { key, byLogin: new Map(list.map((a) => [a.l, a])) };
   }
-  return users;
-}
-
-function getSecret() {
-  const env = (typeof process !== 'undefined' && process.env) || {};
-  // AUTH_SECRET жоқ болса, AUTH_USERS-тен құрылады (пароль ауысса — барлық сессия жабылады)
-  return env.AUTH_SECRET || 'bookrift:' + (env.AUTH_USERS || '');
-}
-
-function b64url(bytes) {
-  let s = '';
-  for (const b of new Uint8Array(bytes)) s += String.fromCharCode(b);
-  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return accountsCache.byLogin;
 }
 
 async function hmac(data) {
-  const key = await crypto.subtle.importKey(
-    'raw',
-    enc.encode(getSecret()),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-  return b64url(await crypto.subtle.sign('HMAC', key, enc.encode(data)));
+  const key = await crypto.subtle.importKey('raw', utf8('session:' + getKey()), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return b64url(await crypto.subtle.sign('HMAC', key, utf8(data)));
 }
 
 // Уақыт бойынша ақпарат бермейтін салыстыру
 function safeEqual(a, b) {
-  const x = enc.encode(String(a));
-  const y = enc.encode(String(b));
+  const x = utf8(String(a));
+  const y = utf8(String(b));
   let diff = x.length ^ y.length;
   for (let i = 0; i < Math.max(x.length, y.length); i++) diff |= (x[i] || 0) ^ (y[i] || 0);
   return diff === 0;
 }
 
 async function makeToken(login) {
-  const payload = b64url(enc.encode(login)) + '.' + (Math.floor(Date.now() / 1000) + MAX_AGE);
+  const payload = b64url(utf8(login)) + '.' + (Math.floor(Date.now() / 1000) + MAX_AGE);
   return payload + '.' + (await hmac(payload));
 }
 
-async function verifyToken(token) {
-  if (!token) return false;
+// Дұрыс токен болса — аккаунтты қайтарады
+async function accountFromToken(token) {
+  if (!token) return null;
   const parts = token.split('.');
-  if (parts.length !== 3) return false;
+  if (parts.length !== 3) return null;
   const [loginB64, exp, sig] = parts;
-  if (!/^\d+$/.test(exp) || Number(exp) < Date.now() / 1000) return false;
-  if (!safeEqual(sig, await hmac(loginB64 + '.' + exp))) return false;
-  // Пайдаланушы AUTH_USERS-тен өшірілсе, сессиясы да жарамсыз болады
+  if (!/^\d+$/.test(exp) || Number(exp) < Date.now() / 1000) return null;
+  if (!safeEqual(sig, await hmac(loginB64 + '.' + exp))) return null;
   try {
-    const login = new TextDecoder().decode(
-      Uint8Array.from(atob(loginB64.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0)),
-    );
-    return getUsers().has(login);
+    const accounts = await getAccounts();
+    // Аккаунт тізімнен өшірілсе, сессиясы да жарамсыз болады
+    return (accounts && accounts.get(fromUtf8(fromB64url(loginB64)))) || null;
   } catch {
-    return false;
+    return null;
   }
 }
+
+const publicInfo = (a) => ({ login: a.l, name: a.n, role: a.r, class: a.c });
 
 function readCookie(request, name) {
   const header = request.headers.get('cookie') || '';
@@ -95,14 +84,25 @@ function readCookie(request, name) {
   return null;
 }
 
-function redirect(url, location, cookie) {
+function cookie(name, value, maxAge, secure, httpOnly = true) {
+  return `${name}=${value}; Path=/;${httpOnly ? ' HttpOnly;' : ''} SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
+}
+
+function redirect(url, location, cookies = []) {
   const headers = new Headers({ Location: new URL(location, url).toString(), 'Cache-Control': 'no-store' });
-  if (cookie) headers.append('Set-Cookie', cookie);
+  cookies.forEach((c) => headers.append('Set-Cookie', c));
   return new Response(null, { status: 303, headers });
 }
 
-function cookieHeader(value, maxAge, secure) {
-  return `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
+}
+
+function text(message, status) {
+  return new Response(message, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 }
 
 // Сұранысты өзгертпей әрі қарай жіберу (@vercel/functions ішіндегі next() дәл осылай жасайды)
@@ -115,47 +115,64 @@ export default async function middleware(request) {
   const path = url.pathname;
   const secure = url.protocol === 'https:';
 
+  if (BLOCKED.some((re) => re.test(path))) return text('Not found', 404);
+
+  if (!getKey()) {
+    return text('ACCOUNTS_KEY орнатылмаған (Vercel → Settings → Environment Variables).', 500);
+  }
+
   // Кіру формасын тексеру
   if (path === '/api/login' && request.method === 'POST') {
-    const users = getUsers();
-    if (users.size === 0) {
-      return new Response('AUTH_USERS орнатылмаған (Vercel → Settings → Environment Variables).', {
-        status: 500,
-        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-      });
-    }
     let login = '';
     let password = '';
     try {
       const form = await request.formData();
-      login = String(form.get('login') || '').trim();
-      password = String(form.get('password') || '');
+      login = String(form.get('login') || '').trim().toLowerCase();
+      password = String(form.get('password') || '').trim();
     } catch {
       /* бос форма */
     }
-    const expected = users.get(login);
-    if (expected !== undefined && safeEqual(password, expected)) {
-      return redirect(url, '/', cookieHeader(await makeToken(login), MAX_AGE, secure));
+    const accounts = await getAccounts();
+    const account = accounts.get(login);
+    if (account && safeEqual(await hashPassword(password, account.s), account.h)) {
+      return redirect(url, '/', [
+        cookie(COOKIE, await makeToken(account.l), MAX_AGE, secure),
+        cookie(USER_COOKIE, encodeURIComponent(JSON.stringify(publicInfo(account))), MAX_AGE, secure, false),
+      ]);
     }
-    // Парольді теріп көруді баяулату
+    // Құпиясөзді теріп көруді баяулату
     await new Promise((r) => setTimeout(r, 700));
     return redirect(url, LOGIN_PAGE + '?error=1');
   }
 
   // Шығу
   if (path === '/logout' || path === '/api/logout') {
-    return redirect(url, LOGIN_PAGE, cookieHeader('', 0, secure));
+    return redirect(url, LOGIN_PAGE, [cookie(COOKIE, '', 0, secure), cookie(USER_COOKIE, '', 0, secure, false)]);
   }
 
-  const authed = await verifyToken(readCookie(request, COOKIE));
+  const account = await accountFromToken(readCookie(request, COOKIE));
 
   if (PUBLIC_PATHS.has(path)) {
     // Кіріп қойған адамды бірден басты бетке жібереміз
-    if (path === LOGIN_PAGE && authed) return redirect(url, '/');
+    if (path === LOGIN_PAGE && account) return redirect(url, '/');
     return next();
   }
 
-  if (authed) return next();
+  if (path === '/api/me') {
+    return account ? json(publicInfo(account)) : json({ error: 'unauthorized' }, 401);
+  }
 
+  // Қызметкерлерге: аккаунттар тізімі (құпиясөзсіз)
+  if (path === '/api/accounts') {
+    if (!account) return json({ error: 'unauthorized' }, 401);
+    if (!STAFF.has(account.r)) return json({ error: 'forbidden' }, 403);
+    const accounts = await getAccounts();
+    const list = [...accounts.values()].filter((a) => account.r === 'admin' || a.r === 'student').map(publicInfo);
+    return json(list);
+  }
+
+  if (account) return next();
+
+  if (path.startsWith('/api/')) return json({ error: 'unauthorized' }, 401);
   return redirect(url, LOGIN_PAGE);
 }

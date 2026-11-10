@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <!-- styles.css логинсіз жабық, сондықтан стиль осы жерде -->
+    <!-- styles.css кірмей тұрып жабық, сондықтан стиль осы жерде -->
     <style>
       :root {
         --primary: #8d7dff;
@@ -61,6 +61,7 @@
         font: inherit;
         outline: none;
       }
+      input::placeholder { color: rgba(170, 183, 212, 0.5); }
       input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(141, 125, 255, 0.25); }
       button {
         width: 100%;
@@ -91,16 +92,16 @@
   <body>
     <main class="card">
       <div class="brand"><span class="brand-mark">B</span><span>BookRift</span></div>
-      <p class="sub">Платформаға кіру үшін логин мен парольді енгізіңіз.</p>
+      <p class="sub">Мұғалім берген логин мен құпиясөзді енгізіңіз.</p>
 
       <form method="POST" action="/api/login">
         <label for="login">Логин</label>
-        <input id="login" name="login" type="text" autocomplete="username" required autofocus />
+        <input id="login" name="login" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="мысалы: aisha.azat" required autofocus />
 
-        <label for="password">Пароль</label>
+        <label for="password">Құпиясөз</label>
         <input id="password" name="password" type="password" autocomplete="current-password" required />
 
-        <div class="error" id="error" role="alert">Логин немесе пароль қате.</div>
+        <div class="error" id="error" role="alert">Логин немесе құпиясөз қате. Мұғаліміңнен тексеріп ал.</div>
 
         <button type="submit">Кіру</button>
       </form>

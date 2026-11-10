@@ -1,0 +1,332 @@
+/* =========================================================
+   BookRift — рөлдер: таңдау терезесі және панельдер
+   ========================================================= */
+
+/* ---------- HUD рөл батырмасы ---------- */
+.role-chip {
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-color: rgba(141, 125, 255, 0.45);
+  background: rgba(141, 125, 255, 0.12);
+}
+
+.role-chip:hover {
+  border-color: var(--primary-2);
+}
+
+/* ---------- Рөл таңдау ---------- */
+body.role-picking {
+  overflow: hidden;
+}
+
+.role-picker {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(141, 125, 255, 0.22), transparent 25%),
+    radial-gradient(circle at 85% 20%, rgba(90, 209, 255, 0.2), transparent 25%),
+    rgba(9, 13, 24, 0.94);
+  backdrop-filter: blur(8px);
+}
+
+.role-picker[hidden] {
+  display: none;
+}
+
+.role-picker-card {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  padding: 32px 28px;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  background: rgba(16, 22, 39, 0.9);
+  box-shadow: var(--shadow);
+}
+
+.role-picker-card h2 {
+  margin: 18px 0 6px;
+}
+
+.role-picker-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+.role-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.role-option {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+.role-option:hover,
+.role-option:focus-visible {
+  border-color: var(--primary-2);
+  background: rgba(90, 209, 255, 0.08);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+.role-option.active {
+  border-color: var(--primary);
+  background: rgba(141, 125, 255, 0.14);
+}
+
+.role-option-icon {
+  font-size: 1.6rem;
+}
+
+.role-option strong {
+  font-size: 1.05rem;
+}
+
+.role-option span:last-child {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+/* ---------- Рөл панелі ---------- */
+.game-page .role-panel {
+  padding: 48px 0 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.game-page .role-panel.compact {
+  padding: 24px 0 0;
+  border-bottom: 0;
+}
+
+.role-heading {
+  margin-bottom: 20px;
+}
+
+.role-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.role-stat {
+  display: grid;
+  gap: 2px;
+  padding: 16px 18px;
+  border-radius: 18px;
+}
+
+.role-stat-icon {
+  font-size: 1.3rem;
+}
+
+.role-stat strong {
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.role-stat span:last-child {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.role-card {
+  padding: 20px;
+  border-radius: 20px;
+  margin-bottom: 16px;
+}
+
+.role-card h3 {
+  margin: 0 0 14px;
+  font-size: 1.05rem;
+}
+
+.role-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.role-form input,
+.role-form select,
+.role-table select {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font: inherit;
+  color-scheme: dark;
+}
+
+.role-form input[type='text'] {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.role-form input:focus,
+.role-form select:focus,
+.role-table select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(141, 125, 255, 0.25);
+}
+
+.role-form .button {
+  padding: 0.7rem 1.2rem;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.role-form + .role-list,
+.role-form + .muted-text {
+  margin-top: 16px;
+}
+
+.role-table td {
+  vertical-align: middle;
+}
+
+.role-table tr.is-blocked td:first-child {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.small-action.danger {
+  border-color: rgba(255, 122, 138, 0.4);
+  background: rgba(255, 122, 138, 0.08);
+}
+
+.small-action.danger:hover {
+  border-color: var(--danger);
+  background: rgba(255, 122, 138, 0.16);
+}
+
+.progress-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 120px;
+}
+
+.progress-cell .xp-track {
+  flex: 1;
+}
+
+.role-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.role-list li > div:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.role-list small {
+  color: var(--muted);
+}
+
+@media (max-width: 560px) {
+  .role-chip strong {
+    display: none;
+  }
+
+  .role-options {
+    grid-template-columns: 1fr;
+  }
+
+  .role-picker-card {
+    padding: 24px 18px;
+  }
+
+  .role-list li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .row-actions {
+    justify-content: flex-start;
+  }
+
+  .role-card .leaderboard-wrap {
+    overflow-x: auto;
+  }
+}
+
+/* ---------- Сынып сүзгісі, логиндер ---------- */
+.role-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.small-action.primary {
+  border-color: var(--primary-2);
+  background: rgba(90, 209, 255, 0.16);
+}
+
+.role-table code {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+.role-note {
+  margin: 12px 0 0;
+  font-size: 0.85rem;
+}
+
+.role-form select {
+  flex: 0 0 auto;
+}

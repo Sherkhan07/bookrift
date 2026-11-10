@@ -3,3 +3,5 @@
 .vercel/
 node_modules/
 doc_text.txt
+# Құпиясөздер мен шифр кілті — ешқашан GitHub-қа жүктелмейді
+private/
