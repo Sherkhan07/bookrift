@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>«Матильда» әлеміне саяхат: Интерактивті 3D карта</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@500;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Three.js, OrbitControls, Tween.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+
+  <style>
+    body {
+      font-family: 'Nunito', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow: hidden;
+    }
+    h1, h2, h3, .font-heading {
+      font-family: 'Comfortaa', cursive, sans-serif;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      outline: none;
+    }
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.15), 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+    }
+    .dark-glass-panel {
+      background: rgba(24, 30, 46, 0.92);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #f1f5f9;
+      box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.4);
+    }
+    /* Pulse pin animation */
+    @keyframes floating-badge {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+    .animate-float {
+      animation: floating-badge 3s ease-in-out infinite;
+    }
+    /* Custom scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="relative w-screen h-screen bg-slate-900 overflow-hidden">
+
+  <!-- 3D WebGL Canvas Container -->
+  <div id="canvas-container" class="absolute inset-0 z-0"></div>
+
+  <!-- Top Navigation Header -->
+  <header class="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between pointer-events-none gap-3">
+    <!-- Title & Brand -->
+    <div class="glass-panel pointer-events-auto rounded-2xl px-5 py-3 flex items-center gap-3 transition-transform hover:scale-[1.02]">
+      <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xl shadow-md">
+        <i class="fa-solid fa-book-sparkles"></i>
+      </div>
+      <div>
+        <h1 class="text-base sm:text-lg font-bold text-slate-800 tracking-tight leading-tight">
+          «Матильда» 3D Кітап Картасы
+        </h1>
+        <p class="text-xs text-slate-500 font-medium hidden sm:block">
+          Руал Даһлдың сиқырлы әлеміне виртуалды интерактивті саяхат
+        </p>
+      </div>
+    </div>
+
+    <!-- Quick Tool Buttons -->
+    <div class="glass-panel pointer-events-auto rounded-2xl p-1.5 flex items-center gap-1 sm:gap-2">
+      <!-- Mode Toggle (Day / Night) -->
+      <button id="btn-theme-toggle" class="px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-100 font-semibold text-xs sm:text-sm flex items-center gap-2 transition" title="Күн мен түн режимін ауыстыру">
+        <i id="theme-icon" class="fa-solid fa-moon text-indigo-600"></i>
+        <span class="hidden md:inline" id="theme-label">Түнгі көрініс</span>
+      </button>
+
+      <!-- Audio Toggle -->
+      <button id="btn-audio-toggle" class="px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-100 font-semibold text-xs sm:text-sm flex items-center gap-2 transition" title="Дыбысты қосу/өшіру">
+        <i id="audio-icon" class="fa-solid fa-volume-high text-emerald-600"></i>
+        <span class="hidden md:inline" id="audio-label">Дыбыс: Қосулы</span>
+      </button>
+
+      <!-- Overview Reset -->
+      <button id="btn-overview" class="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs sm:text-sm flex items-center gap-2 transition shadow-sm" title="Картаны жалпы көрініске қайтару">
+        <i class="fa-solid fa-compass"></i>
+        <span class="hidden sm:inline">Жалпы шолу</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Interactive Hint Tooltip -->
+  <div id="hint-bar" class="absolute top-20 left-1/2 -translate-x-1/2 z-10 pointer-events-none transition-opacity duration-700 opacity-90">
+    <div class="glass-panel rounded-full px-4 py-1.5 text-xs text-slate-600 flex items-center gap-2 shadow-sm font-semibold">
+      <i class="fa-solid fa-hand-pointer text-amber-500 animate-bounce"></i>
+      <span>Ғимараттарды шертіңіз немесе төмендегі батырмалармен саяхаттаңыз</span>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation Carousel / Landmark Selectors -->
+  <div class="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 w-[95%] max-w-4xl pointer-events-auto">
+    <div class="glass-panel rounded-3xl p-2.5 sm:p-3 shadow-2xl">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <!-- Wormwood House Button -->
+        <button onclick="selectLocation('wormwood')" class="nav-loc-btn group relative flex items-center gap-2.5 p-2 sm:p-3 rounded-2xl bg-white/70 hover:bg-amber-50 border border-slate-200/80 transition-all text-left hover:scale-[1.02] active:scale-[0.98]">
+          <span class="text-2xl sm:text-3xl shrink-0 group-hover:scale-110 transition-transform">🏠</span>
+          <div class="overflow-hidden">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">1-нүкте</span>
+            <h2 class="text-xs sm:text-sm font-bold text-slate-800 truncate">Вормвуд үйі</h2>
+          </div>
+        </button>
+
+        <!-- Library Button -->
+        <button onclick="selectLocation('library')" class="nav-loc-btn group relative flex items-center gap-2.5 p-2 sm:p-3 rounded-2xl bg-white/70 hover:bg-indigo-50 border border-slate-200/80 transition-all text-left hover:scale-[1.02] active:scale-[0.98]">
+          <span class="text-2xl sm:text-3xl shrink-0 group-hover:scale-110 transition-transform">📚</span>
+          <div class="overflow-hidden">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 block">2-нүкте</span>
+            <h2 class="text-xs sm:text-sm font-bold text-slate-800 truncate">Кітапхана</h2>
+          </div>
+        </button>
+
+        <!-- School Button -->
+        <button onclick="selectLocation('school')" class="nav-loc-btn group relative flex items-center gap-2.5 p-2 sm:p-3 rounded-2xl bg-white/70 hover:bg-red-50 border border-slate-200/80 transition-all text-left hover:scale-[1.02] active:scale-[0.98]">
+          <span class="text-2xl sm:text-3xl shrink-0 group-hover:scale-110 transition-transform">🏫</span>
+          <div class="overflow-hidden">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-red-700 block">3-нүкте</span>
+            <h2 class="text-xs sm:text-sm font-bold text-slate-800 truncate">Кранчем Холл</h2>
+          </div>
+        </button>
+
+        <!-- Cottage Button -->
+        <button onclick="selectLocation('cottage')" class="nav-loc-btn group relative flex items-center gap-2.5 p-2 sm:p-3 rounded-2xl bg-white/70 hover:bg-emerald-50 border border-slate-200/80 transition-all text-left hover:scale-[1.02] active:scale-[0.98]">
+          <span class="text-2xl sm:text-3xl shrink-0 group-hover:scale-110 transition-transform">🏡</span>
+          <div class="overflow-hidden">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">4-нүкте</span>
+            <h2 class="text-xs sm:text-sm font-bold text-slate-800 truncate">Мисс Хани үйі</h2>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail Modal / Story Card (Left/Right responsive drawer) -->
+  <aside id="info-drawer" class="fixed top-20 right-4 sm:right-6 bottom-28 z-30 w-full sm:w-[420px] max-w-[calc(100vw-2rem)] glass-panel rounded-3xl p-5 sm:p-6 transition-all duration-500 transform translate-x-[120%] pointer-events-auto flex flex-col justify-between overflow-hidden shadow-2xl">
+    <!-- Header -->
+    <div class="flex items-start justify-between pb-3 border-b border-slate-200">
+      <div class="flex items-center gap-3">
+        <span id="drawer-icon" class="text-3xl">📚</span>
+        <div>
+          <span id="drawer-badge" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">Локация</span>
+          <h2 id="drawer-title" class="text-lg font-bold text-slate-800">Орын атауы</h2>
+        </div>
+      </div>
+      <button onclick="closeDrawer()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <!-- Scrollable Content -->
+    <div class="my-4 overflow-y-auto pr-1 space-y-4 custom-scrollbar text-sm text-slate-700 flex-1">
+      <!-- Short summary -->
+      <div class="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/60">
+        <h3 class="font-bold text-amber-900 mb-1 flex items-center gap-2">
+          <i class="fa-solid fa-sparkles text-amber-600"></i> Кітаптағы оқиға:
+        </h3>
+        <p id="drawer-desc" class="leading-relaxed text-slate-700">Оқиға сипаттамасы...</p>
+      </div>
+
+      <!-- Character dialogue snippet / Quote -->
+      <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+          <i class="fa-solid fa-quote-left text-indigo-500 mr-1"></i> Маңызды үзінді немесе ой:
+        </span>
+        <blockquote id="drawer-quote" class="italic text-slate-600 font-medium">«Үзінді...»</blockquote>
+      </div>
+
+      <!-- Interactive Mini Question -->
+      <div class="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100">
+        <span class="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+          <i class="fa-solid fa-circle-question text-indigo-600"></i> Оқушыға арналған сұрақ:
+        </span>
+        <p id="drawer-question" class="font-semibold text-slate-800 mb-2">Сұрақ мәтіні...</p>
+        <button id="drawer-quiz-btn" onclick="toggleQuizAnswer()" class="w-full py-1.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs transition shadow-sm flex items-center justify-center gap-2">
+          <i class="fa-solid fa-eye"></i> Жауабын тексеру
+        </button>
+        <div id="drawer-answer" class="hidden mt-2 p-2 rounded-lg bg-white border border-indigo-200 text-xs text-indigo-950 font-medium">
+          Жауап...
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions Footer -->
+    <div class="pt-3 border-t border-slate-200 flex items-center gap-2">
+      <button onclick="playLocationVoice()" class="flex-1 py-2.5 px-3 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition active:scale-95">
+        <i class="fa-solid fa-play"></i> Дыбыстық сипаттама
+      </button>
+      <button onclick="jumpToNextLocation()" class="py-2.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition active:scale-95" title="Келесі локация">
+        <span>Келесі</span> <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-2xl bg-slate-900/90 text-white text-xs font-semibold shadow-lg transition-all duration-300 opacity-0 pointer-events-none transform translate-y-3">
+    Хабарлама
+  </div>
+
+  <!-- JavaScript Implementation -->
+  <script>
+    /* ==========================================================
+       DATA: MATILDA 4 KEY LOCATIONS (KAZAKH)
+       ========================================================== */
+    const LOCATIONS = {
+      wormwood: {
+        id: 'wormwood',
+        name: 'Вормвудтардың үйі',
+        subtitle: 'Матильданың дүниеге келген үйі',
+        icon: '🏠',
+        badgeColor: 'bg-amber-100 text-amber-800',
+        coords: { x: -32, y: 0, z: -25 },
+        camPos: { x: -22, y: 14, z: -10 },
+        lookAt: { x: -32, y: 4, z: -25 },
+        desc: 'Бұл жерде Матильда кітап оқығаны үшін өз отбасынан үнемі сөгіс еститін. Әкесі мырза Вормвуд ескі көліктердің спидометрін кері айналдырып алдайтын алаяқ, ал шешесі теледидар мен бингодан басқаны білмейтін. Матильда дәл осы үйде әкесінің шляпасына желім жағып, өз құқығын алғаш қорғауды үйренді.',
+        quote: '«Егер үлкендер шектен шығып, сені жәбірлесе, оларға сабақ болатын кішкентай жаза ойлап табу керек.»',
+        question: 'Матильда әкесінің шаш майының орнына құтыға не құйып қойды?',
+        answer: 'Анасының платина тәрізді ашық түсті шаш ағартқыш бояуын құйып қойды!',
+        narration: 'Вормвудтардың үйі. Мұнда кітап оқуға тыйым салынып, үнемі теледидар қосулы тұратын.'
+      },
+      library: {
+        id: 'library',
+        name: 'Қалалық кітапхана',
+        subtitle: 'Миссис Фелпстің кітапханасы',
+        icon: '📚',
+        badgeColor: 'bg-indigo-100 text-indigo-800',
+        coords: { x: -28, y: 0, z: 22 },
+        camPos: { x: -16, y: 16, z: 32 },
+        lookAt: { x: -28, y: 5, z: 22 },
+        desc: 'Небәрі 4 жас 3 айлық Матильда анасы бингоға кеткенде, қалалық кітапханаға күнде жаяу келетін. Мейірімді кітапханашы Миссис Фелпс оған алдымен балалар ертегілерін, ал кейін Чарльз Диккенс, Эрнест Хемингуэй мен Редьярд Киплингтің әлемдік классикалық туындыларын оқуға ұсынды.',
+        quote: '«Кітаптар Матильдаға бұрын-соңды көрмеген жаңа әлемдерді ашып берді. Ол қайықта отырып Эрнест Хемингуэймен бірге теңіз кешті...»',
+        question: 'Матильда кітапханадан ең алғаш толық оқып шыққан балаларға арналған атақты кітап қалай аталды?',
+        answer: 'Ол кітап — Беатрис Поттердің «Қоян Питер туралы ертегісі» болатын!',
+        narration: 'Қалалық кітапхана. Матильда осы жерде кітаптар арқылы күллі әлемді шарлап шықты.'
+      },
+      school: {
+        id: 'school',
+        name: 'Кранчем Холл мектебі',
+        subtitle: 'Crunchem Hall Primary School',
+        icon: '🏫',
+        badgeColor: 'bg-red-100 text-red-800',
+        coords: { x: 26, y: 0, z: -20 },
+        camPos: { x: 14, y: 22, z: -6 },
+        lookAt: { x: 26, y: 7, z: -20 },
+        desc: 'Бұрынғы Олимпиада чемпионы, қатыгез Мисс Транчбұл басқаратын үрейлі мектеп. Мұнда тәртіп бұзғандар шегесі бар тар «Шоки» шкафына қамалатын. Дәл осы мектепте Брюс Богтроттер алып тортты тауысып жеп ерлік жасады, ал Матильда көз жанарымен заттарды қозғалту (телекинез) қасиетін ашты.',
+        quote: '«Менің мектебімдегі ең басты ереже: егер біреу тәртіп бұзса — дереу Шокиге қамалсын!» — Мисс Транчбұл.',
+        question: 'Брюс Богтроттер Мисс Транчбұлдың қандай тортын жеп қойған болатын?',
+        answer: 'Аспаз Кук дайындаған үлкен шоколад тортты жеп қойған еді!',
+        narration: 'Кранчем Холл мектебі. Қатал Мисс Транчбұлдың қамалы және Матильданың ғажайып телекинездік күші оянған жер.'
+      },
+      cottage: {
+        id: 'cottage',
+        name: 'Мисс Ханидің лашығы',
+        subtitle: 'Шынайы мейірім мен тыныштық мекені',
+        icon: '🏡',
+        badgeColor: 'bg-emerald-100 text-emerald-800',
+        coords: { x: 28, y: 0, z: 24 },
+        camPos: { x: 18, y: 13, z: 36 },
+        lookAt: { x: 28, y: 3, z: 24 },
+        desc: 'Орман шетіндегі жабайы гүлдер қоршаған шағын ағаш үйшік. Мұнда тіпті су құбыры, кереует немесе жиһаз да жоқ еді. Мисс Хани примуспен шәй қайнатып, жәшікті үстел ретінде пайдаланатын. Бірақ бұл үй Матильда мен сүйікті ұстазы үшін қорқыныштан ада, бостандық пен адал достықтың ордасына айналды.',
+        quote: '«Бұл лашықта еш байлық жоқ, бірақ мұнда еркіндік пен жайлылық бар...»',
+        question: 'Мисс Ханидің әкесінің аты кім еді және ол кім болып жұмыс істеген?',
+        answer: 'Оның әкесі — доктор Магнус Хани еді.',
+        narration: 'Мисс Ханидің кішкентай лашығы. Мұнда шынайы махаббат пен бақыт салтанат құрған.'
+      }
+    };
+
+    const LOCATION_KEYS = ['wormwood', 'library', 'school', 'cottage'];
+    let currentLocationKey = null;
+
+    /* ==========================================================
+       SOUND SYNTHESIZER (WEB AUDIO API)
+       ========================================================== */
+    let audioContext = null;
+    let isAudioEnabled = true;
+
+    function getAudioContext() {
+      if (!audioContext) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioCtx();
+      }
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+      return audioContext;
+    }
+
+    // Play whimsical bell chime
+    function playChime(freq = 587.33, type = 'sine', duration = 0.8) {
+      if (!isAudioEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.5, ctx.currentTime + duration * 0.4);
+
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+      } catch (e) {
+        console.warn('Audio not initialized yet', e);
+      }
+    }
+
+    // Play whoosh transition
+    function playWhoosh() {
+      if (!isAudioEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(180, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.3);
+        osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.7);
+
+        gain.gain.setValueAtTime(0.01, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc.stop(ctx.currentTime + 0.7);
+      } catch (e) {}
+    }
+
+    /* ==========================================================
+       THREE.JS SCENE SETUP
+       ========================================================== */
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xdcecf8);
+    scene.fog = new THREE.FogExp2(0xdcecf8, 0.012);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+    const defaultCamPos = { x: 0, y: 55, z: 65 };
+    const defaultLookAt = { x: 0, y: 0, z: 0 };
+    camera.position.set(defaultCamPos.x, defaultCamPos.y, defaultCamPos.z);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2.15; // Don't go below ground
+    controls.minDistance = 12;
+    controls.maxDistance = 140;
+    controls.target.set(0, 0, 0);
+
+    // Lighting
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8899aa, 0.65);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xfff6dd, 1.25);
+    dirLight.position.set(45, 60, 30);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.near = 10;
+    dirLight.shadow.camera.far = 160;
+    const d = 55;
+    dirLight.shadow.camera.left = -d;
+    dirLight.shadow.camera.right = d;
+    dirLight.shadow.camera.top = d;
+    dirLight.shadow.camera.bottom = -d;
+    dirLight.shadow.bias = -0.0005;
+    scene.add(dirLight);
+
+    // Warm ambient point light for cozy feeling
+    const centerPointLight = new THREE.PointLight(0xffaa55, 0.4, 80);
+    centerPointLight.position.set(0, 15, 0);
+    scene.add(centerPointLight);
+
+    /* ==========================================================
+       MATERIALS PALETTE
+       ========================================================== */
+    const mats = {
+      ground: new THREE.MeshStandardMaterial({ color: 0x86bd61, roughness: 0.85, metalness: 0.05 }),
+      water: new THREE.MeshStandardMaterial({ color: 0x4fa4c4, roughness: 0.1, metalness: 0.4, transparent: true, opacity: 0.88 }),
+      road: new THREE.MeshStandardMaterial({ color: 0xe6cb9f, roughness: 0.9 }),
+      cobble: new THREE.MeshStandardMaterial({ color: 0xb5a38a, roughness: 0.95 }),
+      wood: new THREE.MeshStandardMaterial({ color: 0x8a532d, roughness: 0.8 }),
+      darkWood: new THREE.MeshStandardMaterial({ color: 0x4a2c17, roughness: 0.85 }),
+      brickRed: new THREE.MeshStandardMaterial({ color: 0xb84b3e, roughness: 0.75 }),
+      darkBrick: new THREE.MeshStandardMaterial({ color: 0x544747, roughness: 0.8 }),
+      stoneGrey: new THREE.MeshStandardMaterial({ color: 0x8f9298, roughness: 0.7 }),
+      wallCream: new THREE.MeshStandardMaterial({ color: 0xf6ede2, roughness: 0.7 }),
+      wallYellow: new THREE.MeshStandardMaterial({ color: 0xf5d77f, roughness: 0.7 }),
+      roofBlue: new THREE.MeshStandardMaterial({ color: 0x3d5a80, roughness: 0.5 }),
+      roofDark: new THREE.MeshStandardMaterial({ color: 0x2b2d42, roughness: 0.6 }),
+      roofOrange: new THREE.MeshStandardMaterial({ color: 0xd95d39, roughness: 0.6 }),
+      roofThatch: new THREE.MeshStandardMaterial({ color: 0xc89d54, roughness: 0.9 }),
+      leafGreen1: new THREE.MeshStandardMaterial({ color: 0x3f8a44, roughness: 0.8 }),
+      leafGreen2: new THREE.MeshStandardMaterial({ color: 0x62a843, roughness: 0.8 }),
+      leafAutumn: new THREE.MeshStandardMaterial({ color: 0xd97724, roughness: 0.8 }),
+      glass: new THREE.MeshStandardMaterial({ color: 0xa8dadc, roughness: 0.2, metalness: 0.6, transparent: true, opacity: 0.75 }),
+      windowWarmGlow: new THREE.MeshStandardMaterial({ color: 0xffe28a, emissive: 0xffaa22, emissiveIntensity: 0.85, roughness: 0.3 }),
+      gold: new THREE.MeshStandardMaterial({ color: 0xffd166, metalness: 0.8, roughness: 0.2 }),
+      white: new THREE.MeshStandardMaterial({ color: 0xf8f9fa, roughness: 0.5 }),
+      blackMetal: new THREE.MeshStandardMaterial({ color: 0x222225, metalness: 0.6, roughness: 0.4 })
+    };
+
+    /* Window night materials collection for day/night toggle */
+    const windowMeshes = [];
+
+    /* ==========================================================
+       PROCEDURAL MAP ENVIRONMENT BUILDER
+       ========================================================== */
+    const worldGroup = new THREE.Group();
+    scene.add(worldGroup);
+
+    // 1. Main Floating Island / Landscape Ground
+    function buildIslandGround() {
+      // Main green terrain
+      const terrainGeo = new THREE.CylinderGeometry(52, 48, 4, 32);
+      const terrain = new THREE.Mesh(terrainGeo, mats.ground);
+      terrain.position.y = -2;
+      terrain.receiveShadow = true;
+      worldGroup.add(terrain);
+
+      // Low poly underground rock base
+      const rockGeo = new THREE.CylinderGeometry(48, 8, 12, 16);
+      const rockMat = new THREE.MeshStandardMaterial({ color: 0x483c32, roughness: 0.95 });
+      const rock = new THREE.Mesh(rockGeo, rockMat);
+      rock.position.y = -9.9;
+      worldGroup.add(rock);
+
+      // Cute small river meandering on one side
+      const riverGeo = new THREE.RingGeometry(22, 28, 30, 2, 0, Math.PI * 0.7);
+      riverGeo.rotateX(-Math.PI / 2);
+      const river = new THREE.Mesh(riverGeo, mats.water);
+      river.position.set(-6, 0.08, -8);
+      river.receiveShadow = true;
+      worldGroup.add(river);
+
+      // Central circular town square
+      const plazaGeo = new THREE.CircleGeometry(9, 24);
+      plazaGeo.rotateX(-Math.PI / 2);
+      const plaza = new THREE.Mesh(plazaGeo, mats.cobble);
+      plaza.position.set(0, 0.05, 0);
+      plaza.receiveShadow = true;
+      worldGroup.add(plaza);
+
+      // Fountain or Book Statue in Center
+      buildCentralStatue(0, 0, 0);
+    }
+
+    // Central Open Book Statue
+    function buildCentralStatue(x, y, z) {
+      const g = new THREE.Group();
+      g.position.set(x, y, z);
+
+      // Stone plinth
+      const plinth = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 3, 1.2, 16), mats.stoneGrey);
+      plinth.position.y = 0.6;
+      plinth.castShadow = true;
+      plinth.receiveShadow = true;
+      g.add(plinth);
+
+      // Golden book base
+      const bookL = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.25, 2.2), mats.gold);
+      bookL.position.set(-0.7, 1.7, 0);
+      bookL.rotation.z = 0.25;
+      bookL.castShadow = true;
+      g.add(bookL);
+
+      const bookR = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.25, 2.2), mats.gold);
+      bookR.position.set(0.7, 1.7, 0);
+      bookR.rotation.z = -0.25;
+      bookR.castShadow = true;
+      g.add(bookR);
+
+      // Signpost directing to 4 places
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3.8, 8), mats.darkWood);
+      pole.position.set(3.2, 1.9, 3.2);
+      pole.castShadow = true;
+      g.add(pole);
+
+      const sign1 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.28, 0.08), mats.wood);
+      sign1.position.set(3.2, 3.2, 3.2);
+      sign1.rotation.y = -Math.PI / 4;
+      g.add(sign1);
+
+      worldGroup.add(g);
+    }
+
+    // Curving path creator using line segments
+    function buildPaths() {
+      const points = [
+        // From center to Wormwood (-32, 0, -25)
+        [{x:0, z:0}, {x:-10, z:-8}, {x:-20, z:-16}, {x:-32, z:-25}],
+        // From center to Library (-28, 0, 22)
+        [{x:0, z:0}, {x:-8, z:8}, {x:-18, z:14}, {x:-28, z:22}],
+        // From center to School (26, 0, -20)
+        [{x:0, z:0}, {x:10, z:-6}, {x:18, z:-12}, {x:26, z:-20}],
+        // From center to Cottage (28, 0, 24)
+        [{x:0, z:0}, {x:8, z:10}, {x:18, z:18}, {x:28, z:24}]
+      ];
+
+      points.forEach(branch => {
+        for (let i = 0; i < branch.length - 1; i++) {
+          const p1 = branch[i];
+          const p2 = branch[i + 1];
+          const dx = p2.x - p1.x;
+          const dz = p2.z - p1.z;
+          const dist = Math.hypot(dx, dz);
+          const angle = Math.atan2(dx, dz);
+
+          const seg = new THREE.Mesh(new THREE.PlaneGeometry(3.2, dist), mats.road);
+          seg.rotation.x = -Math.PI / 2;
+          seg.rotation.z = -angle;
+          seg.position.set((p1.x + p2.x) / 2, 0.04, (p1.z + p2.z) / 2);
+          seg.receiveShadow = true;
+          worldGroup.add(seg);
+
+          // Path stones / stepping stones
+          for (let s = 0; s < 4; s++) {
+            const stone = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.35 + Math.random() * 0.2, 0.4, 0.08, 6),
+              mats.cobble
+            );
+            const interp = (s + 0.5) / 4;
+            const sx = p1.x + dx * interp + (Math.random() - 0.5) * 1.6;
+            const sz = p1.z + dz * interp + (Math.random() - 0.5) * 1.6;
+            stone.position.set(sx, 0.06, sz);
+            stone.receiveShadow = true;
+            worldGroup.add(stone);
+          }
+        }
+      });
+    }
+
+    /* ==========================================================
+       BUILDING THE 4 MATILDA LANDMARKS
+       ========================================================== */
+    const interactiveObjects = []; // raycasting for 3D clicks
+    const landmarkPins = []; // floating pins
+
+    // 1. WORMWOOD HOUSE (Suburban, TV Antenna, Loud colors)
+    function buildWormwoodHouse(x, z) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+      g.userData = { locationId: 'wormwood' };
+
+      // Base footprint
+      const base = new THREE.Mesh(new THREE.BoxGeometry(11, 0.3, 11), mats.cobble);
+      base.position.y = 0.15;
+      base.receiveShadow = true;
+      g.add(base);
+
+      // Main house body
+      const mainHouse = new THREE.Mesh(new THREE.BoxGeometry(7, 5, 6), mats.wallYellow);
+      mainHouse.position.set(-1, 2.7, 0);
+      mainHouse.castShadow = true;
+      mainHouse.receiveShadow = true;
+      g.add(mainHouse);
+
+      // Garage (Wormwood Motors inspiration)
+      const garage = new THREE.Mesh(new THREE.BoxGeometry(4.5, 3.8, 5.5), mats.wallCream);
+      garage.position.set(4.2, 2, 0.2);
+      garage.castShadow = true;
+      garage.receiveShadow = true;
+      g.add(garage);
+
+      // Roof main (pitched)
+      const roofGeo = new THREE.ConeGeometry(5.6, 3, 4);
+      roofGeo.rotateY(Math.PI / 4);
+      const roof = new THREE.Mesh(roofGeo, mats.roofOrange);
+      roof.position.set(-1, 6.6, 0);
+      roof.castShadow = true;
+      g.add(roof);
+
+      // Garage roof
+      const gRoofGeo = new THREE.ConeGeometry(3.6, 1.8, 4);
+      gRoofGeo.rotateY(Math.PI / 4);
+      const gRoof = new THREE.Mesh(gRoofGeo, mats.roofOrange);
+      gRoof.position.set(4.2, 4.6, 0.2);
+      gRoof.castShadow = true;
+      g.add(gRoof);
+
+      // Chimney & TV Antenna (crucial for Mr. Wormwood's obsession)
+      const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), mats.brickRed);
+      chimney.position.set(1, 6.8, -1.2);
+      chimney.castShadow = true;
+      g.add(chimney);
+
+      // Huge TV Antenna
+      const antPole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.4, 6), mats.blackMetal);
+      antPole.position.set(-1.8, 8.2, 0.5);
+      g.add(antPole);
+
+      const cross1 = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.06), mats.blackMetal);
+      cross1.position.set(-1.8, 8.8, 0.5);
+      g.add(cross1);
+
+      const cross2 = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.06, 0.06), mats.blackMetal);
+      cross2.position.set(-1.8, 9.3, 0.5);
+      g.add(cross2);
+
+      // Windows with warm glow
+      const w1 = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.3, 0.1), mats.windowWarmGlow);
+      w1.position.set(-2.5, 3.4, 3.05);
+      windowMeshes.push(w1);
+      g.add(w1);
+
+      const w2 = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.3, 0.1), mats.windowWarmGlow);
+      w2.position.set(0.5, 3.4, 3.05);
+      windowMeshes.push(w2);
+      g.add(w2);
+
+      // Door
+      const door = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.2, 0.15), mats.darkWood);
+      door.position.set(-1, 1.3, 3.05);
+      g.add(door);
+
+      // Front Car (Mr Wormwood's clocked jalopy)
+      const carGroup = new THREE.Group();
+      carGroup.position.set(4, 0.6, 4.2);
+
+      const carBody = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 3.2), mats.roofBlue);
+      carBody.castShadow = true;
+      carGroup.add(carBody);
+
+      const carCab = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.7, 1.8), mats.white);
+      carCab.position.set(0, 0.65, -0.2);
+      carCab.castShadow = true;
+      carGroup.add(carCab);
+
+      // Wheels
+      for (let wx of [-1.05, 1.05]) {
+        for (let wz of [-0.9, 0.9]) {
+          const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.25, 12), mats.blackMetal);
+          wheel.rotation.z = Math.PI / 2;
+          wheel.position.set(wx, -0.15, wz);
+          carGroup.add(wheel);
+        }
+      }
+      g.add(carGroup);
+
+      // Fence
+      for (let fz = -4.5; fz <= 4.5; fz += 1.5) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.1, 0.12), mats.white);
+        post.position.set(-5.3, 0.6, fz);
+        g.add(post);
+      }
+
+      worldGroup.add(g);
+      interactiveObjects.push(g);
+      createLandmarkPin(g, 'wormwood', '🏠 Вормвуд үйі', 11.5);
+    }
+
+    // 2. PUBLIC LIBRARY (Mrs. Phelps' Sanctuary, Brick & Books)
+    function buildPublicLibrary(x, z) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+      g.userData = { locationId: 'library' };
+
+      // Cobblestone terrace
+      const terrace = new THREE.Mesh(new THREE.BoxGeometry(13, 0.35, 11), mats.cobble);
+      terrace.position.y = 0.17;
+      terrace.receiveShadow = true;
+      g.add(terrace);
+
+      // Main Classical Library Building
+      const libBody = new THREE.Mesh(new THREE.BoxGeometry(9.5, 6.2, 7.5), mats.brickRed);
+      libBody.position.set(0, 3.3, 0);
+      libBody.castShadow = true;
+      libBody.receiveShadow = true;
+      g.add(libBody);
+
+      // Mansard Slate Roof
+      const roofGeo = new THREE.BoxGeometry(9.8, 2.2, 7.8);
+      const libRoof = new THREE.Mesh(roofGeo, mats.roofBlue);
+      libRoof.position.set(0, 7.1, 0);
+      libRoof.castShadow = true;
+      g.add(libRoof);
+
+      // Classical Portico with Columns at entrance
+      const porticoRoof = new THREE.Mesh(new THREE.ConeGeometry(3.5, 1.8, 4), mats.white);
+      porticoRoof.rotation.y = Math.PI / 4;
+      porticoRoof.position.set(0, 5.6, 4.4);
+      porticoRoof.castShadow = true;
+      g.add(porticoRoof);
+
+      // 4 Roman Columns
+      for (let cx of [-1.8, -0.6, 0.6, 1.8]) {
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.28, 4.2, 12), mats.white);
+        col.position.set(cx, 2.3, 4.4);
+        col.castShadow = true;
+        g.add(col);
+      }
+
+      // Stairs
+      for (let st = 0; st < 3; st++) {
+        const stair = new THREE.Mesh(new THREE.BoxGeometry(5 - st * 0.4, 0.25, 0.7), mats.stoneGrey);
+        stair.position.set(0, 0.12 + st * 0.22, 4.9 + st * 0.5);
+        stair.receiveShadow = true;
+        g.add(stair);
+      }
+
+      // Big warm arched library windows
+      for (let wx of [-3.2, 3.2]) {
+        const win = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.8, 0.1), mats.windowWarmGlow);
+        win.position.set(wx, 3.8, 3.8);
+        windowMeshes.push(win);
+        g.add(win);
+      }
+
+      // Library Door
+      const libDoor = new THREE.Mesh(new THREE.BoxGeometry(1.6, 3, 0.15), mats.darkWood);
+      libDoor.position.set(0, 1.7, 3.8);
+      g.add(libDoor);
+
+      // Front lawn Book Monument (Giant open book sculpture)
+      const stackG = new THREE.Group();
+      stackG.position.set(4.2, 0.4, 4.2);
+
+      const b1 = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.35, 1.4), mats.brickRed);
+      b1.castShadow = true;
+      stackG.add(b1);
+
+      const b2 = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, 1.3), mats.roofBlue);
+      b2.position.y = 0.36;
+      b2.rotation.y = 0.3;
+      b2.castShadow = true;
+      stackG.add(b2);
+
+      const b3 = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.35, 1.2), mats.gold);
+      b3.position.y = 0.72;
+      b3.rotation.y = -0.25;
+      b3.castShadow = true;
+      stackG.add(b3);
+
+      g.add(stackG);
+
+      // Warm street lamp near library
+      buildStreetLamp(g, -4.5, 4.6);
+
+      worldGroup.add(g);
+      interactiveObjects.push(g);
+      createLandmarkPin(g, 'library', '📚 Қалалық кітапхана', 11);
+    }
+
+    // 3. CRUNCHEM HALL PRIMARY SCHOOL (Gothic, Clock Tower, Chokey, Cake Table)
+    function buildCrunchemHall(x, z) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+      g.userData = { locationId: 'school' };
+
+      // Large Courtyard base
+      const schoolYard = new THREE.Mesh(new THREE.BoxGeometry(16, 0.35, 14), mats.stoneGrey);
+      schoolYard.position.y = 0.17;
+      schoolYard.receiveShadow = true;
+      g.add(schoolYard);
+
+      // Main Dark Stone School Wing
+      const centerHall = new THREE.Mesh(new THREE.BoxGeometry(11, 7, 6.5), mats.darkBrick);
+      centerHall.position.set(0, 3.8, -2.5);
+      centerHall.castShadow = true;
+      centerHall.receiveShadow = true;
+      g.add(centerHall);
+
+      // Dark pitched roof
+      const roofGeo = new THREE.ConeGeometry(9, 3.5, 4);
+      roofGeo.rotateY(Math.PI / 4);
+      const schoolRoof = new THREE.Mesh(roofGeo, mats.roofDark);
+      schoolRoof.position.set(0, 8.8, -2.5);
+      schoolRoof.castShadow = true;
+      g.add(schoolRoof);
+
+      // Imposing Central Clock Tower
+      const tower = new THREE.Mesh(new THREE.BoxGeometry(3.6, 12, 3.6), mats.stoneGrey);
+      tower.position.set(0, 6.5, 0.5);
+      tower.castShadow = true;
+      g.add(tower);
+
+      // Tower Steeple
+      const steeple = new THREE.Mesh(new THREE.ConeGeometry(2.6, 5, 4), mats.roofDark);
+      steeple.rotateY(Math.PI / 4);
+      steeple.position.set(0, 14.8, 0.5);
+      steeple.castShadow = true;
+      g.add(steeple);
+
+      // Tower Clock Face
+      const clock = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.15, 16), mats.white);
+      clock.rotation.x = Math.PI / 2;
+      clock.position.set(0, 10.5, 2.32);
+      g.add(clock);
+
+      // School windows (strict grid)
+      for (let wx of [-4, -2.2, 2.2, 4]) {
+        for (let wy of [2.8, 5.4]) {
+          const w = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.1), mats.windowWarmGlow);
+          w.position.set(wx, wy, 0.8);
+          windowMeshes.push(w);
+          g.add(w);
+        }
+      }
+
+      // School Iron Gates
+      const gateL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3.2, 0.4), mats.blackMetal);
+      gateL.position.set(-3, 1.8, 4.8);
+      g.add(gateL);
+      const gateR = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3.2, 0.4), mats.blackMetal);
+      gateR.position.set(3, 1.8, 4.8);
+      g.add(gateR);
+
+      // "THE CHOKEY" (Infamous punishment cupboard replica in courtyard)
+      const chokey = new THREE.Mesh(new THREE.BoxGeometry(1.6, 3.8, 1.6), mats.darkWood);
+      chokey.position.set(-5.6, 2.1, 3.2);
+      chokey.castShadow = true;
+      g.add(chokey);
+
+      const chokeyRoof = new THREE.Mesh(new THREE.ConeGeometry(1.3, 1, 4), mats.blackMetal);
+      chokeyRoof.rotateY(Math.PI / 4);
+      chokeyRoof.position.set(-5.6, 4.5, 3.2);
+      g.add(chokeyRoof);
+
+      // Plaque on Chokey
+      const chokeySign = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.35, 0.08), mats.gold);
+      chokeySign.position.set(-5.6, 3.4, 4.02);
+      g.add(chokeySign);
+
+      // Bruce Bogtrotter's Cake Table in the yard
+      const table = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.2, 1.4), mats.wood);
+      table.position.set(4.8, 0.8, 3);
+      table.castShadow = true;
+      g.add(table);
+
+      // Giant Chocolate Cake
+      const cake = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.45, 14), mats.darkWood);
+      cake.position.set(4.8, 1.55, 3);
+      cake.castShadow = true;
+      g.add(cake);
+
+      const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.08, 14), mats.white);
+      plate.position.set(4.8, 1.35, 3);
+      g.add(plate);
+
+      worldGroup.add(g);
+      interactiveObjects.push(g);
+      createLandmarkPin(g, 'school', '🏫 Кранчем Холл', 17.5);
+    }
+
+    // 4. MISS HONEY'S COTTAGE (Rustic, Sweet, Wildflowers, Well)
+    function buildMissHoneysCottage(x, z) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+      g.userData = { locationId: 'cottage' };
+
+      // Grass patch / garden base
+      const lawn = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 7, 0.35, 20), mats.ground);
+      lawn.position.y = 0.17;
+      lawn.receiveShadow = true;
+      g.add(lawn);
+
+      // Humble Small Cottage
+      const hut = new THREE.Mesh(new THREE.BoxGeometry(5.2, 3.2, 4.2), mats.wallCream);
+      hut.position.set(-0.5, 1.8, 0);
+      hut.castShadow = true;
+      hut.receiveShadow = true;
+      g.add(hut);
+
+      // Thatch Roof
+      const roofGeo = new THREE.ConeGeometry(4.4, 2.4, 4);
+      roofGeo.rotateY(Math.PI / 4);
+      const tRoof = new THREE.Mesh(roofGeo, mats.roofThatch);
+      tRoof.position.set(-0.5, 4.2, 0);
+      tRoof.castShadow = true;
+      g.add(tRoof);
+
+      // Cozy door
+      const door = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.9, 0.1), mats.wood);
+      door.position.set(-0.5, 1.1, 2.12);
+      g.add(door);
+
+      // Cute small window with flower box
+      const win = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.0, 0.1), mats.windowWarmGlow);
+      win.position.set(1.1, 1.9, 2.12);
+      windowMeshes.push(win);
+      g.add(win);
+
+      const fBox = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.3, 0.35), mats.wood);
+      fBox.position.set(1.1, 1.25, 2.25);
+      g.add(fBox);
+
+      // Stone Water Well (Miss Honey has no tap water)
+      const wellBase = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.2, 0.9, 12), mats.stoneGrey);
+      wellBase.position.set(3.5, 0.6, 2.5);
+      wellBase.castShadow = true;
+      g.add(wellBase);
+
+      const wellPillar1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.8, 6), mats.wood);
+      wellPillar1.position.set(2.8, 1.3, 2.5);
+      g.add(wellPillar1);
+
+      const wellPillar2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.8, 6), mats.wood);
+      wellPillar2.position.set(4.2, 1.3, 2.5);
+      g.add(wellPillar2);
+
+      const wellRoof = new THREE.Mesh(new THREE.ConeGeometry(1.4, 0.9, 4), mats.roofOrange);
+      wellRoof.rotateY(Math.PI / 4);
+      wellRoof.position.set(3.5, 2.5, 2.5);
+      g.add(wellRoof);
+
+      // Vegetable Patch & Pumpkins
+      const patch = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 2.2), mats.darkWood);
+      patch.rotation.x = -Math.PI / 2;
+      patch.position.set(2.8, 0.36, -1.8);
+      g.add(patch);
+
+      // Little pumpkins
+      for (let p = 0; p < 4; p++) {
+        const pumpkin = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 8), mats.roofOrange);
+        pumpkin.position.set(1.8 + (p % 2) * 1.3, 0.55, -2.4 + Math.floor(p / 2) * 1.2);
+        pumpkin.castShadow = true;
+        g.add(pumpkin);
+      }
+
+      // Wildflower dots
+      const flowerColors = [0xff6b6b, 0xffd93d, 0x6bcb77, 0x4d96ff, 0xff76ce];
+      for (let f = 0; f < 18; f++) {
+        const col = flowerColors[f % flowerColors.length];
+        const fl = new THREE.Mesh(
+          new THREE.SphereGeometry(0.18, 6, 6),
+          new THREE.MeshStandardMaterial({ color: col, roughness: 0.5 })
+        );
+        const ang = Math.random() * Math.PI * 2;
+        const rad = 2.5 + Math.random() * 3.5;
+        fl.position.set(Math.cos(ang) * rad - 0.5, 0.36, Math.sin(ang) * rad);
+        g.add(fl);
+      }
+
+      worldGroup.add(g);
+      interactiveObjects.push(g);
+      createLandmarkPin(g, 'cottage', '🏡 Мисс Хани үйі', 7.5);
+    }
+
+    /* ==========================================================
+       DECORATIVE ASSETS: TREES, STREET LAMPS & FOLIAGE
+       ========================================================== */
+    function buildTree(x, z, scale = 1, type = 1) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+      g.scale.set(scale, scale, scale);
+
+      // Trunk
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.25, 0.45, 2.2, 7),
+        mats.wood
+      );
+      trunk.position.y = 1.1;
+      trunk.castShadow = true;
+      g.add(trunk);
+
+      // Foliage
+      const leafMat = type === 1 ? mats.leafGreen1 : (type === 2 ? mats.leafGreen2 : mats.leafAutumn);
+      if (type <= 2) {
+        // Round cloud-like puffs
+        for (let l = 0; l < 3; l++) {
+          const sphere = new THREE.Mesh(new THREE.SphereGeometry(1.2 - l * 0.25, 8, 8), leafMat);
+          sphere.position.set((Math.random() - 0.5) * 0.4, 2.4 + l * 0.9, (Math.random() - 0.5) * 0.4);
+          sphere.castShadow = true;
+          g.add(sphere);
+        }
+      } else {
+        // Pine cone shaped
+        for (let l = 0; l < 3; l++) {
+          const cone = new THREE.Mesh(new THREE.ConeGeometry(1.6 - l * 0.35, 1.8, 7), leafMat);
+          cone.position.y = 2.2 + l * 1.1;
+          cone.castShadow = true;
+          g.add(cone);
+        }
+      }
+
+      worldGroup.add(g);
+    }
+
+    function buildStreetLamp(parent, x, z) {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 3.2, 8), mats.blackMetal);
+      pole.position.y = 1.6;
+      pole.castShadow = true;
+      g.add(pole);
+
+      const lampHead = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.2, 0.5, 6), mats.windowWarmGlow);
+      lampHead.position.y = 3.3;
+      windowMeshes.push(lampHead);
+      g.add(lampHead);
+
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.3, 6), mats.blackMetal);
+      cap.position.y = 3.65;
+      g.add(cap);
+
+      parent.add(g);
+    }
+
+    // Populate scenery with decorative trees
+    function populateDecorations() {
+      const treeCoords = [
+        // Around center
+        {x: -12, z: -5, s: 1.1, t: 1}, {x: -7, z: -15, s: 0.9, t: 2},
+        {x: 12, z: 6, s: 1.2, t: 1}, {x: 8, z: -16, s: 1.0, t: 3},
+        {x: -6, z: 16, s: 1.1, t: 2}, {x: 6, z: 18, s: 0.9, t: 1},
+        // Near Wormwood
+        {x: -24, z: -18, s: 1.0, t: 2}, {x: -38, z: -18, s: 1.2, t: 1},
+        {x: -24, z: -32, s: 1.3, t: 3}, {x: -36, z: -34, s: 0.9, t: 1},
+        // Near Library
+        {x: -18, z: 24, s: 1.3, t: 1}, {x: -36, z: 16, s: 1.1, t: 2},
+        {x: -35, z: 28, s: 1.2, t: 1}, {x: -22, z: 32, s: 0.9, t: 2},
+        // Near School
+        {x: 16, z: -28, s: 1.1, t: 3}, {x: 35, z: -32, s: 1.3, t: 3},
+        {x: 36, z: -14, s: 1.0, t: 2}, {x: 22, z: -34, s: 1.2, t: 3},
+        // Near Cottage (rich lush grove)
+        {x: 22, z: 16, s: 1.2, t: 1}, {x: 36, z: 18, s: 1.4, t: 2},
+        {x: 34, z: 32, s: 1.3, t: 1}, {x: 22, z: 34, s: 1.1, t: 2},
+        {x: 26, z: 36, s: 1.0, t: 1}
+      ];
+
+      treeCoords.forEach(c => buildTree(c.x, c.z, c.s, c.t));
+
+      // Global Streetlamps
+      buildStreetLamp(worldGroup, -3, 3);
+      buildStreetLamp(worldGroup, 4, -3);
+      buildStreetLamp(worldGroup, 12, -8);
+      buildStreetLamp(worldGroup, -12, 10);
+    }
+
+    /* ==========================================================
+       ANIMATED 3D FLOATING PINS (MARKERS)
+       ========================================================== */
+    function createLandmarkPin(parentGroup, locationId, label, heightY) {
+      const pinG = new THREE.Group();
+      pinG.position.set(0, heightY, 0);
+      pinG.userData = { locationId: locationId, isPin: true, baseY: heightY };
+
+      // Gem/Crystal Diamond marker
+      const diamondGeo = new THREE.OctahedronGeometry(1.2, 0);
+      const diamondMat = new THREE.MeshStandardMaterial({
+        color: 0xffb703,
+        emissive: 0xfb8500,
+        emissiveIntensity: 0.7,
+        roughness: 0.2,
+        metalness: 0.3
+      });
+      const diamond = new THREE.Mesh(diamondGeo, diamondMat);
+      diamond.scale.set(0.9, 1.4, 0.9);
+      pinG.add(diamond);
+
+      // Downward pointer cone
+      const coneGeo = new THREE.ConeGeometry(0.5, 1.2, 8);
+      coneGeo.rotateX(Math.PI);
+      const cone = new THREE.Mesh(coneGeo, diamondMat);
+      cone.position.y = -1.2;
+      pinG.add(cone);
+
+      // Glow halo ring
+      const ringGeo = new THREE.RingGeometry(1.6, 2.0, 16);
+      ringGeo.rotateX(-Math.PI / 2);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0xffd166,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.6
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.position.y = -1.6;
+      pinG.add(ring);
+
+      parentGroup.add(pinG);
+      landmarkPins.push(pinG);
+      interactiveObjects.push(diamond);
+    }
+
+    /* ==========================================================
+       INITIALIZE SCENE GEOMETRY
+       ========================================================== */
+    buildIslandGround();
+    buildPaths();
+    buildWormwoodHouse(LOCATIONS.wormwood.coords.x, LOCATIONS.wormwood.coords.z);
+    buildPublicLibrary(LOCATIONS.library.coords.x, LOCATIONS.library.coords.z);
+    buildCrunchemHall(LOCATIONS.school.coords.x, LOCATIONS.school.coords.z);
+    buildMissHoneysCottage(LOCATIONS.cottage.coords.x, LOCATIONS.cottage.coords.z);
+    populateDecorations();
+
+    /* ==========================================================
+       CAMERA GLIDE / FLY-TO ANIMATION (TWEEN)
+       ========================================================== */
+    let isMovingCamera = false;
+
+    function flyCameraTo(targetPos, targetLookAt, duration = 1800, callback) {
+      isMovingCamera = true;
+      playWhoosh();
+
+      // Disable orbit while flying
+      controls.enabled = false;
+
+      // Animate Camera Position
+      new TWEEN.Tween(camera.position)
+        .to(targetPos, duration)
+        .easing(TWEEN.Easing.Cubic.InOut)
+        .start();
+
+      // Animate Controls Target
+      new TWEEN.Tween(controls.target)
+        .to(targetLookAt, duration)
+        .easing(TWEEN.Easing.Cubic.InOut)
+        .onComplete(() => {
+          controls.enabled = true;
+          isMovingCamera = false;
+          if (callback) callback();
+        })
+        .start();
+    }
+
+    /* ==========================================================
+       LOCATION SELECTION & UI MANAGEMENT
+       ========================================================== */
+    function selectLocation(id) {
+      const data = LOCATIONS[id];
+      if (!data) return;
+
+      currentLocationKey = id;
+      playChime(659.25, 'triangle', 0.9);
+
+      // Camera Glide
+      flyCameraTo(data.camPos, data.lookAt, 1600, () => {
+        openDrawer(data);
+      });
+
+      // Update button highlights
+      highlightNavButton(id);
+      showToast(`«${data.name}» локациясына саяхатталды`);
+    }
+
+    function openDrawer(data) {
+      document.getElementById('drawer-icon').innerText = data.icon;
+      document.getElementById('drawer-title').innerText = data.name;
+      document.getElementById('drawer-badge').className = `px-2 py-0.5 rounded-full text-[11px] font-bold ${data.badgeColor}`;
+      document.getElementById('drawer-badge').innerText = data.subtitle;
+      document.getElementById('drawer-desc').innerText = data.desc;
+      document.getElementById('drawer-quote').innerText = data.quote;
+      document.getElementById('drawer-question').innerText = data.question;
+      document.getElementById('drawer-answer').innerText = data.answer;
+      document.getElementById('drawer-answer').classList.add('hidden');
+      document.getElementById('drawer-quiz-btn').innerHTML = '<i class="fa-solid fa-eye mr-1.5"></i> Жауабын тексеру';
+
+      const drawer = document.getElementById('info-drawer');
+      drawer.classList.remove('translate-x-[120%]');
+      drawer.classList.add('translate-x-0');
+    }
+
+    function closeDrawer() {
+      const drawer = document.getElementById('info-drawer');
+      drawer.classList.remove('translate-x-0');
+      drawer.classList.add('translate-x-[120%]');
+      playChime(440, 'sine', 0.3);
+    }
+
+    function toggleQuizAnswer() {
+      const ans = document.getElementById('drawer-answer');
+      const btn = document.getElementById('drawer-quiz-btn');
+      if (ans.classList.contains('hidden')) {
+        ans.classList.remove('hidden');
+        btn.innerHTML = '<i class="fa-solid fa-eye-slash mr-1.5"></i> Жауапты жасыру';
+        playChime(880, 'sine', 0.6);
+      } else {
+        ans.classList.add('hidden');
+        btn.innerHTML = '<i class="fa-solid fa-eye mr-1.5"></i> Жауабын тексеру';
+      }
+    }
+
+    function jumpToNextLocation() {
+      if (!currentLocationKey) {
+        selectLocation(LOCATION_KEYS[0]);
+        return;
+      }
+      const idx = LOCATION_KEYS.indexOf(currentLocationKey);
+      const nextIdx = (idx + 1) % LOCATION_KEYS.length;
+      selectLocation(LOCATION_KEYS[nextIdx]);
+    }
+
+    function highlightNavButton(id) {
+      const buttons = document.querySelectorAll('.nav-loc-btn');
+      buttons.forEach(b => {
+        b.classList.remove('ring-2', 'ring-amber-500', 'bg-amber-100/90');
+      });
+      // Find matching button
+      const targetBtn = Array.from(buttons).find(b => b.getAttribute('onclick')?.includes(id));
+      if (targetBtn) {
+        targetBtn.classList.add('ring-2', 'ring-amber-500', 'bg-amber-100/90');
+      }
+    }
+
+    function resetToOverview() {
+      closeDrawer();
+      currentLocationKey = null;
+      playChime(523.25, 'sine', 0.6);
+      highlightNavButton(null);
+      flyCameraTo(defaultCamPos, defaultLookAt, 1600);
+      showToast('Жалпы көрініс картасына қайтарылды');
+    }
+
+    // Voice narration synthesis (SpeechSynthesis API with fallback sound)
+    function playLocationVoice() {
+      if (!currentLocationKey) return;
+      const loc = LOCATIONS[currentLocationKey];
+
+      playChime(783.99, 'sine', 0.8);
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(loc.narration);
+        utter.rate = 0.92;
+        utter.pitch = 1.05;
+        // Try to pick kazakh or russian voice
+        const voices = window.speechSynthesis.getVoices();
+        const kkVoice = voices.find(v => v.lang.startsWith('kk') || v.lang.startsWith('ru'));
+        if (kkVoice) utter.voice = kkVoice;
+        window.speechSynthesis.speak(utter);
+      }
+      showToast('«' + loc.name + '» дыбыстық сипаттамасы ойналуда...');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.classList.remove('opacity-0', 'translate-y-3');
+      toast.classList.add('opacity-100', 'translate-y-0');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', 'translate-y-3');
+      }, 2600);
+    }
+
+    /* ==========================================================
+       DAY / NIGHT MAGIC MODE TOGGLE
+       ========================================================== */
+    let isNightMode = false;
+
+    function toggleTheme() {
+      isNightMode = !isNightMode;
+      const themeIcon = document.getElementById('theme-icon');
+      const themeLabel = document.getElementById('theme-label');
+
+      if (isNightMode) {
+        // Night palette
+        themeIcon.className = 'fa-solid fa-sun text-amber-500';
+        themeLabel.innerText = 'Күндізгі көрініс';
+
+        new TWEEN.Tween(scene.background)
+          .to({ r: 0.08, g: 0.1, b: 0.2 }, 1000)
+          .start();
+        new TWEEN.Tween(scene.fog.color)
+          .to({ r: 0.08, g: 0.1, b: 0.2 }, 1000)
+          .start();
+
+        dirLight.intensity = 0.25;
+        dirLight.color.setHex(0x6688cc);
+        hemiLight.intensity = 0.25;
+        centerPointLight.intensity = 1.5;
+
+        // Make windows glow strongly
+        windowMeshes.forEach(m => {
+          m.material.emissiveIntensity = 2.0;
+        });
+
+        playChime(329.63, 'sine', 1.0);
+        showToast('Сиқырлы түнгі режим қосылды 🌙');
+      } else {
+        // Day palette
+        themeIcon.className = 'fa-solid fa-moon text-indigo-600';
+        themeLabel.innerText = 'Түнгі көрініс';
+
+        new TWEEN.Tween(scene.background)
+          .to({ r: 0.86, g: 0.92, b: 0.97 }, 1000)
+          .start();
+        new TWEEN.Tween(scene.fog.color)
+          .to({ r: 0.86, g: 0.92, b: 0.97 }, 1000)
+          .start();
+
+        dirLight.intensity = 1.25;
+        dirLight.color.setHex(0xfff6dd);
+        hemiLight.intensity = 0.65;
+        centerPointLight.intensity = 0.4;
+
+        windowMeshes.forEach(m => {
+          m.material.emissiveIntensity = 0.85;
+        });
+
+        playChime(523.25, 'sine', 0.8);
+        showToast('Күндізгі шуақты режим қосылды ☀️');
+      }
+    }
+
+    /* ==========================================================
+       RAYCASTING (CLICK ON 3D BUILDINGS & MARKERS)
+       ========================================================== */
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let mouseDownPos = { x: 0, y: 0 };
+
+    window.addEventListener('pointerdown', (e) => {
+      mouseDownPos.x = e.clientX;
+      mouseDownPos.y = e.clientY;
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      // Ignore if user was dragging/rotating orbit camera
+      const dist = Math.hypot(e.clientX - mouseDownPos.x, e.clientY - mouseDownPos.y);
+      if (dist > 6) return;
+
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(interactiveObjects, true);
+
+      if (intersects.length > 0) {
+        let obj = intersects[0].object;
+        let locationId = null;
+
+        while (obj && obj !== scene) {
+          if (obj.userData && obj.userData.locationId) {
+            locationId = obj.userData.locationId;
+            break;
+          }
+          obj = obj.parent;
+        }
+
+        if (locationId) {
+          selectLocation(locationId);
+        }
+      }
+    });
+
+    /* ==========================================================
+       EVENT LISTENERS & CONTROLS
+       ========================================================== */
+    document.getElementById('btn-overview').addEventListener('click', resetToOverview);
+    document.getElementById('btn-theme-toggle').addEventListener('click', toggleTheme);
+
+    // Audio toggle
+    document.getElementById('btn-audio-toggle').addEventListener('click', () => {
+      isAudioEnabled = !isAudioEnabled;
+      const icon = document.getElementById('audio-icon');
+      const label = document.getElementById('audio-label');
+      if (isAudioEnabled) {
+        icon.className = 'fa-solid fa-volume-high text-emerald-600';
+        label.innerText = 'Дыбыс: Қосулы';
+        playChime(659.25, 'sine', 0.4);
+        showToast('Дыбыс эффектілері қосылды 🔔');
+      } else {
+        icon.className = 'fa-solid fa-volume-xmark text-slate-400';
+        label.innerText = 'Дыбыс: Өшірулі';
+        showToast('Дыбыс өшірілді 🔇');
+      }
+    });
+
+    // Resize Handler
+    window.addEventListener('resize', onWindowResize, false);
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    /* ==========================================================
+       MAIN ANIMATION LOOP
+       ========================================================== */
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const elapsedTime = clock.getElapsedTime();
+
+      // Update Tween animations
+      TWEEN.update();
+
+      // Animate floating 3D pins
+      landmarkPins.forEach((pin, i) => {
+        pin.position.y = pin.userData.baseY + Math.sin(elapsedTime * 2.5 + i * 1.5) * 0.45;
+        pin.rotation.y = elapsedTime * 1.4 + i;
+      });
+
+      // Update camera controls
+      controls.update();
+
+      // Render Scene
+      renderer.render(scene, camera);
+    }
+
+    // Start on window load
+    window.onload = function () {
+      animate();
+
+      // Auto hide hint after 6s
+      setTimeout(() => {
+        const hint = document.getElementById('hint-bar');
+        if (hint) hint.classList.add('opacity-0');
+      }, 7000);
+    };
+  </script>
+</body>
+</html>
