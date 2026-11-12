@@ -2102,3 +2102,10 @@ button.daily-card:hover {
 .door-note + .center-actions .button {
   font-size: 1.02rem;
 }
+
+/* 3D «Матильда» картасына сілтеме */
+.map-3d-link {
+  margin-top: 14px;
+  gap: 6px;
+  text-decoration: none;
+}
